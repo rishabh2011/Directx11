@@ -348,3 +348,5 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
+D3D11/D3D11.vcxproj.filters
+D3D11/D3D11.vcxproj
