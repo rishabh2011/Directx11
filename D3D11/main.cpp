@@ -316,8 +316,7 @@ void InitD3DApp::createRasterizerStates()
 	rastDesc.CullMode = D3D11_CULL_BACK;
 	rastDesc.FrontCounterClockwise = false;
 	rastDesc.DepthClipEnable = true;
-	rastDesc.ScissorEnable = true;
-
+	
 	ThrowIfFailed(d3dDevice->CreateRasterizerState(&rastDesc, rastState.GetAddressOf()));
 }
 
