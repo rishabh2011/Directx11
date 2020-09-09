@@ -262,7 +262,7 @@ void InitD3DApp::buildGeometryData()
 	XMMATRIX rotation = XMMatrixRotationAxis(XMVECTORF32{ 0.0f, 1.0f, 0.0f }, XMConvertToRadians(45.0f));
 	XMStoreFloat4x4(&cubeWorldMatrix, rotation * translate);
 
-	translate = XMMatrixTranslation(3.5f, -1.0f, 0.0f);
+	translate = XMMatrixTranslation(1.5f, -1.0f, 0.0f);
 	XMStoreFloat4x4(&pyramidWorldMatrix, translate);
 }
 
@@ -339,9 +339,9 @@ void InitD3DApp::setupLightingData()
 	pyramidMaterial.specColor = { 1.0f, 1.0f, 1.0f, 8.0f };  //w = specular Power
 
 	//Directional Light settings
-	cbufferperframe.dirLight.ambientColor = { 1.0f, 0.0f, 0.0f, 1.0f };
-	cbufferperframe.dirLight.diffuseColor = { 1.0f, 0.0f, 0.0f, 1.0f };
-	cbufferperframe.dirLight.specColor = { 1.0f, 0.0f, 0.0f, 1.0f };
+	cbufferperframe.dirLight.ambientColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+	cbufferperframe.dirLight.diffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+	cbufferperframe.dirLight.specColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 	cbufferperframe.dirLight.lightDir = {0.0f, 1.0f, 0.0f};
 
 	//Point Light settings
@@ -400,7 +400,7 @@ void InitD3DApp::drawScene()
 	assert(swapChain);
 	assert(immediateContext);
 
-	immediateContext->ClearRenderTargetView(renderTargetView.Get(), Colors::Black);
+	immediateContext->ClearRenderTargetView(renderTargetView.Get(), Colors::White);
 	immediateContext->ClearDepthStencilView(depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 	//Set shader programs

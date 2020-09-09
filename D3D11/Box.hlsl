@@ -92,8 +92,8 @@ float4 pixelShader(VertexOUT vout) : SV_TARGET
 {
     float4 color = { 0.0f, 0.0f, 0.0f, 0.0f };
     color += calculateDirLight(dirLight, material, normalize(vout.NormalW), vout.PosW);
-    color += calculatePointLight(pointLight, material, normalize(vout.NormalW), vout.PosW);
-    color += calculateSpotLight(spotLight, material, normalize(vout.NormalW), vout.PosW);
+    //color += calculatePointLight(pointLight, material, normalize(vout.NormalW), vout.PosW);
+    //color += calculateSpotLight(spotLight, material, normalize(vout.NormalW), vout.PosW);
     return color;
 }
 
@@ -108,6 +108,12 @@ float4 calculateDirLight(DirectLight l, Material m, float3 normal, float3 vertex
 	
 	//Diffuse
     float diffuseFactor = max(dot(lightDir, normal), 0);
+    
+    [flatten]
+    if(diffuseFactor <= 0.0f) { diffuseFactor = 0.4f; }
+    else if(diffuseFactor > 0.0f && diffuseFactor <= 0.5f) { diffuseFactor = 0.6f; }
+    else { diffuseFactor = 1.0f; }
+    
     float4 diffuse =  diffuseFactor * l.diffuseColor * m.diffuseColor;
 	
 	//Specular
@@ -116,7 +122,12 @@ float4 calculateDirLight(DirectLight l, Material m, float3 normal, float3 vertex
     if(diffuseFactor > 0.0f)
     {
         float3 reflectDir = reflect(-lightDir, normal);
+        
         float specFactor = pow(max(dot(reflectDir, viewDirW), 0), m.specColor.w);
+        if (specFactor <= 0.1f && specFactor >= 0.0f) { specFactor = 0.0f; }
+        else if (specFactor > 0.1f && specFactor <= 0.8f) { specFactor = 0.5f; }
+        else if (specFactor > 0.8f && specFactor <= 1.0f) { specFactor = 0.8f; }
+        
         specular = specFactor * l.specColor * m.specColor;
     }
 	

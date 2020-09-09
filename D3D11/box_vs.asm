@@ -64,7 +64,7 @@ dcl_temps 4
 //   o1.x <- <vertexShader return value>.PosW.x; o1.y <- <vertexShader return value>.PosW.y; o1.z <- <vertexShader return value>.PosW.z; 
 //   o0.x <- <vertexShader return value>.PosH.x; o0.y <- <vertexShader return value>.PosH.y; o0.z <- <vertexShader return value>.PosH.z; o0.w <- <vertexShader return value>.PosH.w
 //
-#line 84 "D:\Programming\DirectX\D3D11\Box.hlsl"
+#line 84 "D:\Programming\D3D11\D3D11\Box.hlsl"
 mov r0.xyz, v0.xyzx
 mov r0.w, l(1.000000)
 dp4 r1.x, r0.xyzw, cb0[0].xyzw  // r1.x <- vout.PosH.x
