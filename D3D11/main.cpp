@@ -330,32 +330,32 @@ void InitD3DApp::buildShaderData()
 void InitD3DApp::setupLightingData()
 {
 	//Material settings
-	cubeMaterial.ambientColor = XMFLOAT4(Colors::Red);
-	cubeMaterial.diffuseColor = XMFLOAT4(Colors::Red);
+	cubeMaterial.ambientColor = XMFLOAT4(Colors::DarkRed);
+	cubeMaterial.diffuseColor = XMFLOAT4(Colors::DarkRed);
 	cubeMaterial.specColor = { 1.0f, 1.0f, 1.0f, 8.0f };  //w = specular Power
 
-	pyramidMaterial.ambientColor = XMFLOAT4(Colors::Green);
-	pyramidMaterial.diffuseColor = XMFLOAT4(Colors::Green);
+	pyramidMaterial.ambientColor = XMFLOAT4(Colors::DarkGreen);
+	pyramidMaterial.diffuseColor = XMFLOAT4(Colors::DarkGreen);
 	pyramidMaterial.specColor = { 1.0f, 1.0f, 1.0f, 8.0f };  //w = specular Power
 
 	//Directional Light settings
-	cbufferperframe.dirLight.ambientColor = { 0.8f, 0.8f, 0.8f, 0.8f };
-	cbufferperframe.dirLight.diffuseColor = { 0.8f, 0.8f, 0.8f, 0.8f };
-	cbufferperframe.dirLight.specColor = { 0.8f, 0.8f, 0.8f, 0.8f };
+	cbufferperframe.dirLight.ambientColor = { 1.0f, 0.0f, 0.0f, 1.0f };
+	cbufferperframe.dirLight.diffuseColor = { 1.0f, 0.0f, 0.0f, 1.0f };
+	cbufferperframe.dirLight.specColor = { 1.0f, 0.0f, 0.0f, 1.0f };
 	cbufferperframe.dirLight.lightDir = {0.0f, 1.0f, 0.0f};
 
 	//Point Light settings
-	cbufferperframe.pointLight.ambientColor = { 0.8f, 0.8f, 0.8f, 0.8f };
-	cbufferperframe.pointLight.diffuseColor = { 0.8f, 0.8f, 0.8f, 0.8f };
-	cbufferperframe.pointLight.specColor = { 0.8f, 0.8f, 0.8f, 0.8f };
+	cbufferperframe.pointLight.ambientColor = { 0.0f, 1.0f, 0.0f, 1.0f };
+	cbufferperframe.pointLight.diffuseColor = { 0.0f, 1.0f, 0.0f, 1.0f };
+	cbufferperframe.pointLight.specColor = { 0.0f, 1.0f, 0.0f, 1.0f };
 	cbufferperframe.pointLight.lightPos = { 0.0f, 1.0f, 0.0f };
 	cbufferperframe.pointLight.range = 10.0f;
 	cbufferperframe.pointLight.att = { 0.0f, 1.0f, 0.0f };
 
 	//Spot Light settings
-	cbufferperframe.spotLight.ambientColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-	cbufferperframe.spotLight.diffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-	cbufferperframe.spotLight.specColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+	cbufferperframe.spotLight.ambientColor = { 0.0f, 0.0f, 1.0f, 1.0f };
+	cbufferperframe.spotLight.diffuseColor = { 0.0f, 0.0f, 1.0f, 1.0f };
+	cbufferperframe.spotLight.specColor = { 0.0f, 0.0f, 1.0f, 1.0f };
 	cbufferperframe.spotLight.range = 10.0f;
 	cbufferperframe.spotLight.att = { 0.0f, 1.0f, 0.0f };
 	cbufferperframe.spotLight.spotPower = 8.0f;
