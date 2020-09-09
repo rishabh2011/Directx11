@@ -1,8 +1,8 @@
 cd C:\Program Files (x86)\Windows Kits\10\bin\10.0.18362.0\x64
 
 vertex shader
-fxc.exe "D:\Programming\DirectX\D3D11\Box.hlsl" /Od /Zi /T vs_5_0 /E "vertexShader" /Fo "D:\Programming\DirectX\D3D11\box_vs.cso" /Fc "D:\Programming\DirectX\D3D11\box_vs.asm"
+fxc.exe "D:\Programming\D3D11\D3D11\Box.hlsl" /Od /Zi /T vs_5_0 /E "vertexShader" /Fo "D:\Programming\D3D11\D3D11\box_vs.cso" /Fc "D:\Programming\D3D11\D3D11\box_vs.asm"
 
 
 pixel shader
-fxc.exe "D:\Programming\DirectX\D3D11\Box.hlsl" /Od /Zi /T ps_5_0 /E "pixelShader" /Fo "D:\Programming\DirectX\D3D11\box_ps.cso" /Fc "D:\Programming\DirectX\D3D11\box_ps.asm"
+fxc.exe "D:\Programming\D3D11\D3D11\Box.hlsl" /Od /Zi /T ps_5_0 /E "pixelShader" /Fo "D:\Programming\D3D11\D3D11\box_ps.cso" /Fc "D:\Programming\D3D11\D3D11\box_ps.asm"
