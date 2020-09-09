@@ -1,7 +1,55 @@
 #include "D3DApp.h"
+#include "Lighting.h"
+#include "MathHelper.h"
+
+struct cbufferPerFrame
+{
+	cbufferPerFrame() { ZeroMemory(this, sizeof(this)); }
+
+	DirectLight dirLight;
+	PointLight pointLight;
+	SpotLight spotLight;
+	XMFLOAT4 viewPos;
+} cbufferperframe;
+
+struct cbufferPerObject
+{
+	cbufferPerObject() { ZeroMemory(this, sizeof(this)); }
+
+	XMMATRIX worldViewProj;
+	XMMATRIX worldInvTranspose;
+	XMMATRIX world;
+	Material material;
+} cbufferperobject;
 
 class InitD3DApp : public d3dApp
 {
+private:
+
+	ComPtr<ID3D11InputLayout> inputLayout;
+	ComPtr<ID3D11RasterizerState> rastState;
+
+	ComPtr<ID3D11Buffer> cubeVertexBuffer;
+	ComPtr<ID3D11Buffer> cubeIndexBuffer;
+	ComPtr<ID3D11Buffer> pyramidVertexBuffer;
+	ComPtr<ID3D11Buffer> pyramidIndexBuffer;
+	ComPtr<ID3D11Buffer> constantBufferPerObject;
+	ComPtr<ID3D11Buffer> constantBufferPerFrame;
+
+	ComPtr<ID3D11VertexShader> vertexShader;
+	ComPtr<ID3D11PixelShader> pixelShader;
+
+	XMFLOAT4X4 cubeWorldMatrix;
+	XMFLOAT4X4 pyramidWorldMatrix; 
+	XMFLOAT4X4 fViewMatrix;
+	XMFLOAT4X4 fProjMatrix;
+
+	//Materials
+	Material cubeMaterial;
+	Material pyramidMaterial;	
+
+	DRAW_INDEXED_DESC drawIndexedDesc;
+
 public:
 
 	InitD3DApp(HINSTANCE appInstance);
@@ -13,52 +61,12 @@ protected:
 	virtual void onResize() override;
 	virtual void updateScene(float deltaTime) override;
 	virtual void drawScene() override;
-	void drawObjectIndexed(ComPtr<ID3D11Buffer>vertexBuffer, ComPtr<ID3D11Buffer>indexBuffer, XMFLOAT4X4 worldMatrix,
-		UINT indexCount, UINT stride, UINT offset = 0, UINT startIndex = 0, UINT baseVertex = 0);
-	virtual LRESULT msgHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) override;
-
-	virtual void onMouseMove(WPARAM wParam, int x, int y) override;
-	virtual void onMouseButtonDown(WPARAM wParam, int x, int y) override;
-
-	void moveCamera(WPARAM wParam);
+	void drawObjectIndexed(const DRAW_INDEXED_DESC * desc);
+	
 	void buildGeometryData();
 	void buildShaderData();
+	void setupLightingData();
 	void createRasterizerStates();
-
-private:
-
-	ComPtr<ID3D11InputLayout> inputLayout;
-	ComPtr<ID3D11RasterizerState> rastState;
-
-	ComPtr<ID3D11Buffer> cubeVertexBuffer;
-	ComPtr<ID3D11Buffer> cubeIndexBuffer;
-	ComPtr<ID3D11Buffer> pyramidVertexBuffer;
-	ComPtr<ID3D11Buffer> pyramidIndexBuffer;
-	ComPtr<ID3D11Buffer> constantBuffer;
-
-	ComPtr<ID3D11VertexShader> vertexShader;
-	ComPtr<ID3D11PixelShader> pixelShader;
-
-	struct Vertex
-	{
-		XMFLOAT3 position;
-		XMFLOAT4 color;
-	};
-
-	XMFLOAT4X4 cubeWorldMatrix;
-	XMFLOAT4X4 pyramidWorldMatrix;
-	XMFLOAT4X4 fViewMatrix;
-	XMFLOAT4X4 fProjMatrix;
-
-	//Camera variables
-	XMFLOAT3 camLookAt;
-	XMFLOAT4 camPos;
-	float yaw{ 0 };
-	float pitch{ 0 };
-	float lastX{ 0 };
-	float lastY{ 0 };
-	float camSpeed{ 100.0f };
-	float camSens{ 0.1f };
 };
 
 //------------------------------------------------------------------------------------------
@@ -91,6 +99,7 @@ InitD3DApp::InitD3DApp(HINSTANCE appInstance) : d3dApp(appInstance)
 {
 	XMMATRIX identity = XMMatrixIdentity();
 	XMStoreFloat4x4(&cubeWorldMatrix, identity);
+	XMStoreFloat4x4(&pyramidWorldMatrix, identity);
 	XMStoreFloat4x4(&fViewMatrix, identity);
 	XMStoreFloat4x4(&fProjMatrix, identity);
 
@@ -107,6 +116,7 @@ bool InitD3DApp::init()
 	if (!d3dApp::init()) { return false; }
 	buildShaderData();
 	buildGeometryData();
+	setupLightingData();
 	createRasterizerStates();
 
 	return true;
@@ -115,57 +125,21 @@ bool InitD3DApp::init()
 //----------------------------------
 void InitD3DApp::buildGeometryData()
 {
-	//------------------------------------------------------------------//
-	//------------------------VERTEX------------------------------------//
-	//------------------------------------------------------------------//
-	//Cube Data
-	Vertex cubeVertices[] =
+	//-----------------------------------------------------//
+	//-----------------------CUBE--------------------------//
+	//-----------------------------------------------------//
+	VertexWithNormal cubeVertices[] =
 	{
-		{XMFLOAT3{-0.5f, -0.5f, 0.5f}, XMFLOAT4(Colors::BlanchedAlmond)},  //Rear Bottom Left - 0
-		{XMFLOAT3{-0.5f, 0.5f, 0.5f}, XMFLOAT4(Colors::Chocolate)}, //Rear Top Left - 1
-		{XMFLOAT3{0.5f, 0.5f, 0.5f}, XMFLOAT4(Colors::Aquamarine)},  //Rear Top Right - 2
-		{XMFLOAT3{0.5f, -0.5f, 0.5f}, XMFLOAT4(Colors::DarkGray)}, //Rear Bottom Right - 3
-		{XMFLOAT3{-0.5f, -0.5f, -0.5f}, XMFLOAT4(Colors::Red)}, //Front Bottom Left - 4
-		{XMFLOAT3{-0.5f, 0.5f, -0.5f}, XMFLOAT4(Colors::Green)}, //Front Top Left - 5
-		{XMFLOAT3{0.5f, 0.5f, -0.5f}, XMFLOAT4(Colors::Blue)}, //Front Top Right - 6
-		{XMFLOAT3{0.5f, -0.5f, -0.5f}, XMFLOAT4(Colors::DarkMagenta)}, //Front Bottom Right - 7		
+		{XMFLOAT3{-0.5f, -0.5f, 0.5f}, XMFLOAT3()},  //Rear Bottom Left - 0
+		{XMFLOAT3{-0.5f, 0.5f, 0.5f}, XMFLOAT3()}, //Rear Top Left - 1
+		{XMFLOAT3{0.5f, 0.5f, 0.5f}, XMFLOAT3()},  //Rear Top Right - 2
+		{XMFLOAT3{0.5f, -0.5f, 0.5f}, XMFLOAT3()}, //Rear Bottom Right - 3
+		{XMFLOAT3{-0.5f, -0.5f, -0.5f}, XMFLOAT3()}, //Front Bottom Left - 4
+		{XMFLOAT3{-0.5f, 0.5f, -0.5f}, XMFLOAT3()}, //Front Top Left - 5
+		{XMFLOAT3{0.5f, 0.5f, -0.5f}, XMFLOAT3()}, //Front Top Right - 6
+		{XMFLOAT3{0.5f, -0.5f, -0.5f}, XMFLOAT3()}, //Front Bottom Right - 7		
 	};
 
-	//Define buffer desc
-	D3D11_BUFFER_DESC vbDesc;
-	vbDesc.ByteWidth = 8 * sizeof(Vertex);
-	vbDesc.Usage = D3D11_USAGE_IMMUTABLE;
-	vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vbDesc.CPUAccessFlags = 0;
-	vbDesc.MiscFlags = 0;
-	vbDesc.StructureByteStride = 0;
-
-	//Define sub resource data
-	D3D11_SUBRESOURCE_DATA vbData;
-	vbData.pSysMem = cubeVertices;
-
-	//Create vertex buffer
-	ThrowIfFailed(d3dDevice->CreateBuffer(&vbDesc, &vbData, cubeVertexBuffer.GetAddressOf()));
-
-	//Pyramid Data
-	Vertex pyramidVertices[] =
-	{
-		{XMFLOAT3{-0.5f, -0.5f, 0.5f}, XMFLOAT4(Colors::BlanchedAlmond)},  //Rear Bottom Left - 0
-		{XMFLOAT3{0.5f, -0.5f, 0.5f}, XMFLOAT4(Colors::DarkGray)}, //Rear Bottom Right - 1
-		{XMFLOAT3{-0.5f, -0.5f, -0.5f}, XMFLOAT4(Colors::Red)}, //Front Bottom Left - 2
-		{XMFLOAT3{0.5f, -0.5f, -0.5f}, XMFLOAT4(Colors::Blue)}, //Front Bottom Right - 3		
-		{XMFLOAT3{0.0f, 0.5f, 0.0f}, XMFLOAT4(Colors::Green)}, //Top - 4		
-	};
-
-	vbDesc.ByteWidth = 5 * sizeof(Vertex);
-	vbData.pSysMem = pyramidVertices;
-
-	//Create vertex buffer
-	ThrowIfFailed(d3dDevice->CreateBuffer(&vbDesc, &vbData, pyramidVertexBuffer.GetAddressOf()));
-
-	//------------------------------------------------------------------//
-	//-------------------------INDEX------------------------------------//
-	//------------------------------------------------------------------//
 	//Cube Indices
 	unsigned int cubeIndices[] = {
 		//Top Face
@@ -193,6 +167,25 @@ void InitD3DApp::buildGeometryData()
 		7, 2, 3
 	};
 
+	calculateNormals(cubeVertices, 8, cubeIndices, 12);
+
+	//Define buffer desc
+	D3D11_BUFFER_DESC vbDesc;
+	vbDesc.ByteWidth = 8 * sizeof(VertexWithNormal);
+	vbDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vbDesc.CPUAccessFlags = 0;
+	vbDesc.MiscFlags = 0;
+	vbDesc.StructureByteStride = 0;
+
+	//Define sub resource data
+	D3D11_SUBRESOURCE_DATA vbData;
+	vbData.pSysMem = cubeVertices;
+
+	//Create vertex buffer
+	ThrowIfFailed(d3dDevice->CreateBuffer(&vbDesc, &vbData, cubeVertexBuffer.GetAddressOf()));
+
+	//Create Index buffer
 	D3D11_BUFFER_DESC idxDesc;
 	idxDesc.ByteWidth = sizeof(unsigned int) * 36;
 	idxDesc.Usage = D3D11_USAGE_IMMUTABLE;
@@ -205,6 +198,18 @@ void InitD3DApp::buildGeometryData()
 	idxData.pSysMem = cubeIndices;
 
 	ThrowIfFailed(d3dDevice->CreateBuffer(&idxDesc, &idxData, cubeIndexBuffer.GetAddressOf()));
+
+	//------------------------------------------------------//
+	//---------------------PYRAMID--------------------------//
+	//------------------------------------------------------//
+	VertexWithNormal pyramidVertices[] =
+	{
+		{XMFLOAT3{-0.5f, -0.5f, 0.5f}, XMFLOAT3()},  //Rear Bottom Left - 0
+		{XMFLOAT3{0.5f, -0.5f, 0.5f}, XMFLOAT3()}, //Rear Bottom Right - 1
+		{XMFLOAT3{-0.5f, -0.5f, -0.5f}, XMFLOAT3()}, //Front Bottom Left - 2
+		{XMFLOAT3{0.5f, -0.5f, -0.5f}, XMFLOAT3()}, //Front Bottom Right - 3		
+		{XMFLOAT3{0.0f, 0.5f, 0.0f}, XMFLOAT3()}, //Top - 4		
+	};
 
 	//Pyramid Indices
 	unsigned int pyramidIndices[] = {
@@ -225,29 +230,39 @@ void InitD3DApp::buildGeometryData()
 		3, 4, 1
 	};
 
+	calculateNormals(pyramidVertices, 5, pyramidIndices, 6);
+
+	vbDesc.ByteWidth = 5 * sizeof(VertexWithNormal);
+	vbData.pSysMem = pyramidVertices;
+	//Create vertex buffer
+	ThrowIfFailed(d3dDevice->CreateBuffer(&vbDesc, &vbData, pyramidVertexBuffer.GetAddressOf()));
+
 	idxDesc.ByteWidth = sizeof(unsigned int) * 18;
 	idxData.pSysMem = pyramidIndices;
 
 	ThrowIfFailed(d3dDevice->CreateBuffer(&idxDesc, &idxData, pyramidIndexBuffer.GetAddressOf()));
-
+	
 	//-----------------------------------------------------------------------//
 	//-----------------------------CONSTANT----------------------------------//
 	//-----------------------------------------------------------------------//
 
 	D3D11_BUFFER_DESC constDesc;
 	ZeroMemory(&constDesc, sizeof(D3D11_BUFFER_DESC));
-	constDesc.ByteWidth = sizeof(XMMATRIX);
+	constDesc.ByteWidth = sizeof(cbufferPerObject);
 	constDesc.Usage = D3D11_USAGE_DYNAMIC;
 	constDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	constDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-	ThrowIfFailed(d3dDevice->CreateBuffer(&constDesc, nullptr, constantBuffer.GetAddressOf()));
+	ThrowIfFailed(d3dDevice->CreateBuffer(&constDesc, nullptr, constantBufferPerObject.GetAddressOf()));
+
+	constDesc.ByteWidth = sizeof(cbufferPerFrame);
+	ThrowIfFailed(d3dDevice->CreateBuffer(&constDesc, nullptr, constantBufferPerFrame.GetAddressOf()));
 
 	XMMATRIX translate = XMMatrixTranslation(0.0f, -1.0f, 0.0f);
 	XMMATRIX rotation = XMMatrixRotationAxis(XMVECTORF32{ 0.0f, 1.0f, 0.0f }, XMConvertToRadians(45.0f));
 	XMStoreFloat4x4(&cubeWorldMatrix, rotation * translate);
 
-	translate = XMMatrixTranslation(1.5f, -1.0f, 0.0f);
+	translate = XMMatrixTranslation(3.5f, -1.0f, 0.0f);
 	XMStoreFloat4x4(&pyramidWorldMatrix, translate);
 }
 
@@ -262,7 +277,9 @@ void InitD3DApp::buildShaderData()
 	ComPtr<ID3D10Blob> compiledCode;
 	ComPtr<ID3D10Blob> errorMsgs;
 
-	//Vertex Shader
+	//------------------------------------------------------------//
+	//-----------------------VERTEX SHADER------------------------//
+	//------------------------------------------------------------//
 #if defined(ONLINE) //Runtime shader compilation
 	HRESULT result = S_OK;
 	result = D3DCompileFromFile(L"Box.hlsl", nullptr, nullptr, "vertexShader", "vs_5_0",
@@ -283,13 +300,15 @@ void InitD3DApp::buildShaderData()
 	D3D11_INPUT_ELEMENT_DESC inpDesc[]
 	{
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
 	};
 	ThrowIfFailed(d3dDevice->CreateInputLayout(inpDesc, 2, compiledCode->GetBufferPointer(),
 		compiledCode->GetBufferSize(), inputLayout.GetAddressOf()));
 	compiledCode.Reset();
 
-	//Pixel Shader
+	//------------------------------------------------------------//
+	//-----------------------PIXEL SHADER-------------------------//
+	//------------------------------------------------------------//
 #if defined(ONLINE)
 	result = D3DCompileFromFile(L"Box.hlsl", nullptr, nullptr, "pixelShader", "ps_5_0",
 		compileFlags, 0, compiledCode.GetAddressOf(), errorMsgs.GetAddressOf());
@@ -307,6 +326,41 @@ void InitD3DApp::buildShaderData()
 		nullptr, pixelShader.GetAddressOf()));
 }
 
+//----------------------------------
+void InitD3DApp::setupLightingData()
+{
+	//Material settings
+	cubeMaterial.ambientColor = XMFLOAT4(Colors::Red);
+	cubeMaterial.diffuseColor = XMFLOAT4(Colors::Red);
+	cubeMaterial.specColor = { 1.0f, 1.0f, 1.0f, 8.0f };  //w = specular Power
+
+	pyramidMaterial.ambientColor = XMFLOAT4(Colors::Green);
+	pyramidMaterial.diffuseColor = XMFLOAT4(Colors::Green);
+	pyramidMaterial.specColor = { 1.0f, 1.0f, 1.0f, 8.0f };  //w = specular Power
+
+	//Directional Light settings
+	cbufferperframe.dirLight.ambientColor = { 0.8f, 0.8f, 0.8f, 0.8f };
+	cbufferperframe.dirLight.diffuseColor = { 0.8f, 0.8f, 0.8f, 0.8f };
+	cbufferperframe.dirLight.specColor = { 0.8f, 0.8f, 0.8f, 0.8f };
+	cbufferperframe.dirLight.lightDir = {0.0f, 1.0f, 0.0f};
+
+	//Point Light settings
+	cbufferperframe.pointLight.ambientColor = { 0.8f, 0.8f, 0.8f, 0.8f };
+	cbufferperframe.pointLight.diffuseColor = { 0.8f, 0.8f, 0.8f, 0.8f };
+	cbufferperframe.pointLight.specColor = { 0.8f, 0.8f, 0.8f, 0.8f };
+	cbufferperframe.pointLight.lightPos = { 0.0f, 1.0f, 0.0f };
+	cbufferperframe.pointLight.range = 10.0f;
+	cbufferperframe.pointLight.att = { 0.0f, 1.0f, 0.0f };
+
+	//Spot Light settings
+	cbufferperframe.spotLight.ambientColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+	cbufferperframe.spotLight.diffuseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+	cbufferperframe.spotLight.specColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+	cbufferperframe.spotLight.range = 10.0f;
+	cbufferperframe.spotLight.att = { 0.0f, 1.0f, 0.0f };
+	cbufferperframe.spotLight.spotPower = 8.0f;
+}
+
 //---------------------------------------
 void InitD3DApp::createRasterizerStates()
 {
@@ -316,102 +370,7 @@ void InitD3DApp::createRasterizerStates()
 	rastDesc.CullMode = D3D11_CULL_BACK;
 	rastDesc.FrontCounterClockwise = false;
 	rastDesc.DepthClipEnable = true;
-	
 	ThrowIfFailed(d3dDevice->CreateRasterizerState(&rastDesc, rastState.GetAddressOf()));
-}
-
-//-------------------------------------------------------------------------------
-LRESULT InitD3DApp::msgHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-	switch (msg)
-	{
-	case WM_KEYDOWN:
-		moveCamera(wParam);
-		break;   //No return statement as ESCAPE is handled separately in base msgHandler
-	}
-
-	return d3dApp::msgHandler(hWnd, msg, wParam, lParam);
-}
-
-//-------------------------------------------------------------
-void InitD3DApp::onMouseButtonDown(WPARAM wParam, int x, int y)
-{
-	lastX = x;
-	lastY = y;
-}
-
-//-------------------------------------------------------
-void InitD3DApp::onMouseMove(WPARAM wParam, int x, int y)
-{
-	if ((wParam & MK_LBUTTON) != 0)
-	{
-		float xOffset = x - lastX;
-		float yOffset = y - lastY;
-
-		xOffset *= camSens;
-		yOffset *= camSens;
-
-		lastX = x;
-		lastY = y;
-
-		yaw += xOffset;
-		pitch += yOffset;
-
-		if (pitch > 90) { pitch = 90; }
-		if (pitch < -90) { pitch = -90; }
-
-		float newX, newY, newZ;
-		newX = sinf(XMConvertToRadians(yaw)) * cosf(XMConvertToRadians(pitch));
-		newY = -sinf(XMConvertToRadians(pitch));
-		newZ = cosf(XMConvertToRadians(pitch)) * cosf(XMConvertToRadians(yaw));
-
-		camLookAt.x = newX;
-		camLookAt.y = newY;
-		camLookAt.z = newZ;
-
-		//Normalize
-		XMVECTOR camLookAt = XMLoadFloat3(&(this->camLookAt));
-		camLookAt = XMVector3Normalize(camLookAt);
-		XMStoreFloat3(&(this->camLookAt), camLookAt);
-	}
-}
-
-//----------------------------------------
-void InitD3DApp::moveCamera(WPARAM wParam)
-{
-	XMVECTOR camPos = XMLoadFloat4(&(this->camPos));
-	XMVECTOR camLookAt = XMLoadFloat3(&(this->camLookAt));
-	XMVECTOR right = XMVectorZero();
-
-	//W - Move Forward
-	if (wParam == 0x57)
-	{
-		camPos += camLookAt * camSpeed * gameTimer.getDeltaTime();
-		XMStoreFloat4(&(this->camPos), camPos);
-	}
-
-	//S - Move Backward
-	if (wParam == 0x53)
-	{
-		camPos -= camLookAt * camSpeed * gameTimer.getDeltaTime();
-		XMStoreFloat4(&(this->camPos), camPos);
-	}
-
-	//A - Move Left
-	if (wParam == 0x41)
-	{
-		right = XMVector3Normalize(XMVector3Cross({ 0.0f, 1.0f, 0.0f }, camLookAt));
-		camPos -= right * camSpeed * gameTimer.getDeltaTime();
-		XMStoreFloat4(&(this->camPos), camPos);
-	}
-
-	//D - Move Right
-	if (wParam == 0x44)
-	{
-		right = XMVector3Normalize(XMVector3Cross({ 0.0f, 1.0f, 0.0f }, camLookAt));
-		camPos += right * camSpeed * gameTimer.getDeltaTime();
-		XMStoreFloat4(&(this->camPos), camPos);
-	}
 }
 
 //-------------------------------------------
@@ -441,7 +400,7 @@ void InitD3DApp::drawScene()
 	assert(swapChain);
 	assert(immediateContext);
 
-	immediateContext->ClearRenderTargetView(renderTargetView.Get(), Colors::White);
+	immediateContext->ClearRenderTargetView(renderTargetView.Get(), Colors::Black);
 	immediateContext->ClearDepthStencilView(depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 	//Set shader programs
@@ -451,27 +410,60 @@ void InitD3DApp::drawScene()
 	//Set Rasterizer state
 	immediateContext->RSSetState(rastState.Get());
 
-	//Set Constant Buffer
-	immediateContext->VSSetConstantBuffers(0, 1, constantBuffer.GetAddressOf());
-
+	//Set Constant Buffers
+	immediateContext->VSSetConstantBuffers(0, 1, constantBufferPerObject.GetAddressOf());
+	immediateContext->PSSetConstantBuffers(0, 1, constantBufferPerObject.GetAddressOf());
+	immediateContext->PSSetConstantBuffers(1, 1, constantBufferPerFrame.GetAddressOf());
+	
 	//Set Input Layout
 	immediateContext->IASetInputLayout(inputLayout.Get());
 
 	//Set primitive topology
 	immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	//Draw
-	drawObjectIndexed(cubeVertexBuffer, cubeIndexBuffer, cubeWorldMatrix, 36, sizeof(Vertex));
-	drawObjectIndexed(pyramidVertexBuffer, pyramidIndexBuffer, pyramidWorldMatrix, 18, sizeof(Vertex));
+	//CBUFFER PER FRAME
+	D3D11_MAPPED_SUBRESOURCE mappedSubResource;
+	XMFLOAT3 spotLightPos = Float4ToFloat3(&(getCameraPos()));
+	XMFLOAT3 spotLightDir = getCameraTarget();
+
+	cbufferperframe.viewPos = getCameraPos();
+	cbufferperframe.spotLight.lightPos = spotLightPos;
+	cbufferperframe.spotLight.lightDir = spotLightDir;
+
+	ZeroMemory(&mappedSubResource, sizeof(mappedSubResource));
+	immediateContext->Map(constantBufferPerFrame.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubResource);
+	memcpy(mappedSubResource.pData, &cbufferperframe, sizeof(cbufferPerFrame));
+	immediateContext->Unmap(constantBufferPerFrame.Get(), 0);
+
+	//Draw Cube
+	drawIndexedDesc.vertexBuffer = cubeVertexBuffer;
+	drawIndexedDesc.stride = sizeof(VertexWithNormal);
+	drawIndexedDesc.worldMatrix = cubeWorldMatrix;
+	drawIndexedDesc.material = cubeMaterial;
+	drawIndexedDesc.indexBuffer = cubeIndexBuffer;
+	drawIndexedDesc.indexCount = 36;
+	drawObjectIndexed(&drawIndexedDesc);
+
+	//Draw Pyramid
+	drawIndexedDesc.vertexBuffer = pyramidVertexBuffer;
+	drawIndexedDesc.worldMatrix = pyramidWorldMatrix;
+	drawIndexedDesc.material = pyramidMaterial;
+	drawIndexedDesc.indexBuffer = pyramidIndexBuffer;
+	drawIndexedDesc.indexCount = 18;
+	drawObjectIndexed(&drawIndexedDesc);
 	ThrowIfFailed(swapChain->Present(0, 0));
 }
 
-//---------------------------------------------------------------------------------------------------------------------------
-void InitD3DApp::drawObjectIndexed(ComPtr<ID3D11Buffer>vertexBuffer, ComPtr<ID3D11Buffer>indexBuffer, XMFLOAT4X4 worldMatrix,
-	UINT indexCount, UINT stride, UINT offset, UINT startIndex, UINT baseVertex)
+//----------------------------------------------------------------
+void InitD3DApp::drawObjectIndexed(const DRAW_INDEXED_DESC * desc)
 {
+	//==================//
+	//CBUFFER PER OBJECT//
+	//==================//
+
+	//World View Projection Matrix
 	XMMATRIX worldViewProj;
-	XMMATRIX world = XMLoadFloat4x4(&worldMatrix);
+	XMMATRIX world = XMLoadFloat4x4(&(desc->worldMatrix));
 	XMMATRIX view = XMLoadFloat4x4(&fViewMatrix);
 	XMMATRIX proj = XMLoadFloat4x4(&fProjMatrix);
 	worldViewProj = world * view * proj;
@@ -479,14 +471,28 @@ void InitD3DApp::drawObjectIndexed(ComPtr<ID3D11Buffer>vertexBuffer, ComPtr<ID3D
 	//Therefore, transpose to a column matrix as then it will be a row matrix in hlsl
 	worldViewProj = XMMatrixTranspose(worldViewProj);
 
-	D3D11_MAPPED_SUBRESOURCE mappedResource;
-	ZeroMemory(&mappedResource, sizeof(mappedResource));
-	immediateContext->Map(constantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-	memcpy(mappedResource.pData, &worldViewProj, sizeof(XMMATRIX));
-	immediateContext->Unmap(constantBuffer.Get(), 0);
+	//World Inverse Transpose Matrix
+	XMMATRIX worldInvTranspose;
+	//No transpose as have to store matrix in column format for it to be stored as row format in hlsl
+	worldInvTranspose = XMMatrixInverse(&XMMatrixDeterminant(world), world); 
 
-	immediateContext->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
-	immediateContext->IASetIndexBuffer(indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+	cbufferperobject.worldInvTranspose = worldInvTranspose;
+	cbufferperobject.worldViewProj = worldViewProj;
+	cbufferperobject.world = XMMatrixTranspose(world);
+	cbufferperobject.material = desc->material;
 
-	immediateContext->DrawIndexed(indexCount, startIndex, baseVertex);
+	D3D11_MAPPED_SUBRESOURCE mappedSubResource;
+	ZeroMemory(&mappedSubResource, sizeof(mappedSubResource));
+	immediateContext->Map(constantBufferPerObject.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubResource);
+	memcpy(mappedSubResource.pData, &cbufferperobject, sizeof(cbufferPerObject));
+	immediateContext->Unmap(constantBufferPerObject.Get(), 0);
+
+	//=================================================//
+
+	//Set Buffers
+	immediateContext->IASetVertexBuffers(0, 1, desc->vertexBuffer.GetAddressOf(), &(desc->stride), &(desc->offset));
+	immediateContext->IASetIndexBuffer(desc->indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+
+	//Draw
+	immediateContext->DrawIndexed(desc->indexCount, desc->startIndex, desc->baseVertex);
 }

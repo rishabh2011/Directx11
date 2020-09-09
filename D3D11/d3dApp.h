@@ -43,6 +43,16 @@ protected:
 	//Timer vars
 	GameTimer gameTimer;
 
+	//Camera variables
+	XMFLOAT3 camLookAt;
+	XMFLOAT4 camPos;
+	float yaw{ 0 };
+	float pitch{ 0 };
+	float lastX{ 0 };
+	float lastY{ 0 };
+	float camSpeed{ 100.0f };
+	float camSens{ 0.1f };
+
 public:
 
 	explicit d3dApp(HINSTANCE appInstance);
@@ -56,13 +66,17 @@ public:
 	virtual void drawScene() = 0;
 	virtual LRESULT msgHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-	virtual void onMouseButtonDown(WPARAM wParam, int x, int y) {};
+	virtual void onMouseButtonDown(WPARAM wParam, int x, int y);
 	virtual void onMouseButtonUp(WPARAM wParam, int x, int y) {}
-	virtual void onMouseMove(WPARAM wParam, int x, int y) {}
+	virtual void onMouseMove(WPARAM wParam, int x, int y);
+
+	XMFLOAT4 getCameraPos();
+	XMFLOAT3 getCameraTarget();
 
 protected:
 	void calculateFrameStats();
 	bool initWindowApp();
 	bool initD3D();
 	float aspectRatio();
+	void moveCamera(WPARAM wParam);
 };

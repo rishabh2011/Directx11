@@ -9,8 +9,8 @@
 #include <wrl.h>
 #include <d3d11.h>
 #include <d3dcompiler.h>
-#include <DirectXPackedVector.h>
 #include <DirectXMath.h>
+#include <DirectXPackedVector.h> 
 #include <DirectXColors.h>
 #include <vector>
 #include <iostream>
@@ -82,4 +82,18 @@ static XMVECTORF32 RGBAToBGRA(FXMVECTOR color)
 
 	XMVECTORF32 adjustedColor{ fColor.z, fColor.y, fColor.x, fColor.w };
 	return adjustedColor;
+}
+
+//-----------------------------------------------------------
+static inline XMFLOAT3 Float4ToFloat3(const XMFLOAT4* float4)
+{
+	return XMFLOAT3(reinterpret_cast<const float*>(float4));
+}
+
+//--------------------------------------------------------------------
+static inline XMFLOAT4 Float3ToFloat4(const XMFLOAT3* float3, float w)
+{
+	XMFLOAT4 convValue(reinterpret_cast<const float*>(float3));
+	convValue.w = w;
+	return convValue;
 }

@@ -8,6 +8,17 @@
 // {
 //
 //   float4x4 gWorldViewProj;           // Offset:    0 Size:    64
+//   float4x4 gWorldInvTranspose;       // Offset:   64 Size:    64
+//   float4x4 gWorld;                   // Offset:  128 Size:    64
+//   
+//   struct Material
+//   {
+//       
+//       float4 ambientColor;           // Offset:  192
+//       float4 diffuseColor;           // Offset:  208
+//       float4 specColor;              // Offset:  224
+//
+//   } material;                        // Offset:  192 Size:    48 [unused]
 //
 // }
 //
@@ -25,7 +36,7 @@
 // Name                 Index   Mask Register SysValue  Format   Used
 // -------------------- ----- ------ -------- -------- ------- ------
 // POSITION                 0   xyz         0     NONE   float   xyz 
-// COLOR                    0   xyzw        1     NONE   float   xyzw
+// NORMAL                   0   xyz         1     NONE   float   xyz 
 //
 //
 // Output signature:
@@ -33,36 +44,47 @@
 // Name                 Index   Mask Register SysValue  Format   Used
 // -------------------- ----- ------ -------- -------- ------- ------
 // SV_POSITION              0   xyzw        0      POS   float   xyzw
-// COLOR                    0   xyzw        1     NONE   float   xyzw
+// POSITION                 0   xyz         1     NONE   float   xyz 
+// NORMAL                   0   xyz         2     NONE   float   xyz 
 //
 vs_5_0
 dcl_globalFlags refactoringAllowed | skipOptimization
-dcl_constantbuffer CB0[4], immediateIndexed
+dcl_constantbuffer CB0[11], immediateIndexed
 dcl_input v0.xyz
-dcl_input v1.xyzw
+dcl_input v1.xyz
 dcl_output_siv o0.xyzw, position
-dcl_output o1.xyzw
-dcl_temps 2
+dcl_output o1.xyz
+dcl_output o2.xyz
+dcl_temps 4
 //
 // Initial variable locations:
-//   v0.x <- vin.iPosL.x; v0.y <- vin.iPosL.y; v0.z <- vin.iPosL.z; 
-//   v1.x <- vin.iColor.x; v1.y <- vin.iColor.y; v1.z <- vin.iColor.z; v1.w <- vin.iColor.w; 
-//   o1.x <- <vertexShader return value>.oColor.x; o1.y <- <vertexShader return value>.oColor.y; o1.z <- <vertexShader return value>.oColor.z; o1.w <- <vertexShader return value>.oColor.w; 
-//   o0.x <- <vertexShader return value>.oPosH.x; o0.y <- <vertexShader return value>.oPosH.y; o0.z <- <vertexShader return value>.oPosH.z; o0.w <- <vertexShader return value>.oPosH.w
+//   v0.x <- vin.PosL.x; v0.y <- vin.PosL.y; v0.z <- vin.PosL.z; 
+//   v1.x <- vin.NormalL.x; v1.y <- vin.NormalL.y; v1.z <- vin.NormalL.z; 
+//   o2.x <- <vertexShader return value>.NormalW.x; o2.y <- <vertexShader return value>.NormalW.y; o2.z <- <vertexShader return value>.NormalW.z; 
+//   o1.x <- <vertexShader return value>.PosW.x; o1.y <- <vertexShader return value>.PosW.y; o1.z <- <vertexShader return value>.PosW.z; 
+//   o0.x <- <vertexShader return value>.PosH.x; o0.y <- <vertexShader return value>.PosH.y; o0.z <- <vertexShader return value>.PosH.z; o0.w <- <vertexShader return value>.PosH.w
 //
-#line 21 "D:\Programming\D3D11\D3D11\Box.hlsl"
+#line 84 "D:\Programming\DirectX\D3D11\Box.hlsl"
 mov r0.xyz, v0.xyzx
 mov r0.w, l(1.000000)
-dp4 r1.x, r0.xyzw, cb0[0].xyzw  // r1.x <- vout.oPosH.x
-dp4 r1.y, r0.xyzw, cb0[1].xyzw  // r1.y <- vout.oPosH.y
-dp4 r1.z, r0.xyzw, cb0[2].xyzw  // r1.z <- vout.oPosH.z
-dp4 r1.w, r0.xyzw, cb0[3].xyzw  // r1.w <- vout.oPosH.w
+dp4 r1.x, r0.xyzw, cb0[0].xyzw  // r1.x <- vout.PosH.x
+dp4 r1.y, r0.xyzw, cb0[1].xyzw  // r1.y <- vout.PosH.y
+dp4 r1.z, r0.xyzw, cb0[2].xyzw  // r1.z <- vout.PosH.z
+dp4 r1.w, r0.xyzw, cb0[3].xyzw  // r1.w <- vout.PosH.w
 
-#line 22
-mov r0.xyzw, v1.xyzw  // r0.x <- vout.oColor.x; r0.y <- vout.oColor.y; r0.z <- vout.oColor.z; r0.w <- vout.oColor.w
+#line 85
+dp3 r2.x, v1.xyzx, cb0[4].xyzx  // r2.x <- vout.NormalW.x
+dp3 r2.y, v1.xyzx, cb0[5].xyzx  // r2.y <- vout.NormalW.y
+dp3 r2.z, v1.xyzx, cb0[6].xyzx  // r2.z <- vout.NormalW.z
 
-#line 24
+#line 86
+dp4 r3.x, r0.xyzw, cb0[8].xyzw  // r3.x <- vout.PosW.x
+dp4 r3.y, r0.xyzw, cb0[9].xyzw  // r3.y <- vout.PosW.y
+dp4 r3.z, r0.xyzw, cb0[10].xyzw  // r3.z <- vout.PosW.z
+
+#line 88
 mov o0.xyzw, r1.xyzw
-mov o1.xyzw, r0.xyzw
+mov o1.xyz, r3.xyzx
+mov o2.xyz, r2.xyzx
 ret 
-// Approximately 10 instruction slots used
+// Approximately 16 instruction slots used
