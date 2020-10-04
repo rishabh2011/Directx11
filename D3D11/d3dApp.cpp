@@ -522,8 +522,8 @@ void d3dApp::onMouseMove(WPARAM wParam, int x, int y)
 		yaw += xOffset;
 		pitch += yOffset;
 
-		if (pitch > 90) { pitch = 90; }
-		if (pitch < -90) { pitch = -90; }
+		if (pitch > 89) { pitch = 89; }
+		if (pitch < -89) { pitch = -89; }
 
 		float newX, newY, newZ;
 		newX = sinf(XMConvertToRadians(yaw)) * cosf(XMConvertToRadians(pitch));

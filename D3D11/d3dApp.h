@@ -50,7 +50,7 @@ protected:
 	float pitch{ 0 };
 	float lastX{ 0 };
 	float lastY{ 0 };
-	float camSpeed{ 100.0f };
+	float camSpeed{ 10.0f };
 	float camSens{ 0.1f };
 
 public:

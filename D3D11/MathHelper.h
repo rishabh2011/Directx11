@@ -1,7 +1,8 @@
 #pragma once
 #include "Model.h"
 
-void calculateNormals(VertexWithNormal vertices[], int numVertices, UINT indices[], int numTriangles)
+template <typename T>
+void calculateNormals(T vertices[], int numVertices, UINT indices[], int numTriangles)
 {
 	for (size_t i{ 0 }; i < numTriangles; i++)
 	{

@@ -8,6 +8,8 @@
 #include <comdef.h>
 #include <wrl.h>
 #include <d3d11.h>
+#include <WICTextureLoader.h>
+#include <DDSTextureLoader.h>
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h> 
@@ -72,6 +74,33 @@ static ComPtr<ID3D10Blob> loadShaderCodeFromFile(const std::string& fileName)
 	file.close();
 
 	return compiledCode;
+}
+
+//-------------------------------------//
+//--------Texture loading--------------//
+//-------------------------------------//
+enum class texType : unsigned int { WIC, DDS, HDR, TGA };
+
+// WIC -> .BMP, .PNG, .GIF, .TIFF, .JPEG
+// DDS 
+// HDR
+// TGA
+// Pass in correct file type enum
+// Returns a shader resource view to the created texture resource
+//----------------------------------------------------------------------------------------------------------
+static void createShaderResourceViewFromImageFile(const std::wstring& fileName, ComPtr<ID3D11Device> device,
+	ComPtr<ID3D11DeviceContext> deviceContext, texType type, ComPtr<ID3D11ShaderResourceView> *texView)
+{
+	switch (type)
+	{
+	case texType::WIC:
+		ThrowIfFailed(CreateWICTextureFromFile(device.Get(), deviceContext.Get(), fileName.c_str(), nullptr, (*texView).GetAddressOf()));
+		break;
+
+	case texType::DDS:
+		ThrowIfFailed(CreateDDSTextureFromFile(device.Get(), fileName.c_str(), nullptr, (*texView).GetAddressOf()));
+		break;
+	}	
 }
 
 //--------------------------------------------
