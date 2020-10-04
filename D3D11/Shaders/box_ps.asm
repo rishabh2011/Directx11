@@ -10,15 +10,17 @@
 //   float4x4 gWorldViewProj;           // Offset:    0 Size:    64 [unused]
 //   float4x4 gWorldInvTranspose;       // Offset:   64 Size:    64 [unused]
 //   float4x4 gWorld;                   // Offset:  128 Size:    64 [unused]
+//   float4x4 gTexTransform;            // Offset:  192 Size:    64 [unused]
 //   
 //   struct Material
 //   {
 //       
-//       float4 ambientColor;           // Offset:  192
-//       float4 diffuseColor;           // Offset:  208
-//       float4 specColor;              // Offset:  224
+//       float4 ambientColor;           // Offset:  256
+//       float4 diffuseColor;           // Offset:  272
+//       float4 specColor;              // Offset:  288
 //
-//   } material;                        // Offset:  192 Size:    48
+//   } material;                        // Offset:  256 Size:    48
+//   bool useTexture;                   // Offset:  304 Size:     4
 //
 // }
 //
@@ -47,7 +49,7 @@
 //       float3 att;                    // Offset:  128
 //       float pad;                     // Offset:  140
 //
-//   } pointLight;                      // Offset:   64 Size:    80 [unused]
+//   } pointLight;                      // Offset:   64 Size:    80
 //   
 //   struct SpotLight
 //   {
@@ -62,7 +64,7 @@
 //       float3 lightDir;               // Offset:  224
 //       float spotPower;               // Offset:  236
 //
-//   } spotLight;                       // Offset:  144 Size:    96 [unused]
+//   } spotLight;                       // Offset:  144 Size:    96
 //   float4 viewPosW;                   // Offset:  240 Size:    16
 //
 // }
@@ -72,6 +74,8 @@
 //
 // Name                                 Type  Format         Dim      HLSL Bind  Count
 // ------------------------------ ---------- ------- ----------- -------------- ------
+// sam                               sampler      NA          NA             s0      1 
+// diffuseMap                        texture  float4          2d             t0      1 
 // cbperobject                       cbuffer      NA          NA            cb0      1 
 // cbperframe                        cbuffer      NA          NA            cb1      1 
 //
@@ -84,6 +88,7 @@
 // SV_POSITION              0   xyzw        0      POS   float       
 // POSITION                 0   xyz         1     NONE   float   xyz 
 // NORMAL                   0   xyz         2     NONE   float   xyz 
+// TEXCOORD                 0   xy          3     NONE   float   xy  
 //
 //
 // Output signature:
@@ -94,131 +99,345 @@
 //
 ps_5_0
 dcl_globalFlags refactoringAllowed | skipOptimization
-dcl_constantbuffer CB0[15], immediateIndexed
+dcl_constantbuffer CB0[20], immediateIndexed
 dcl_constantbuffer CB1[16], immediateIndexed
+dcl_sampler s0, mode_default
+dcl_resource_texture2d (float,float,float,float) t0
 dcl_input_ps linear v1.xyz
 dcl_input_ps linear v2.xyz
+dcl_input_ps linear v3.xy
 dcl_output o0.xyzw
-dcl_temps 10
+dcl_temps 15
 //
 // Initial variable locations:
 //   v0.x <- vout.PosH.x; v0.y <- vout.PosH.y; v0.z <- vout.PosH.z; v0.w <- vout.PosH.w; 
 //   v1.x <- vout.PosW.x; v1.y <- vout.PosW.y; v1.z <- vout.PosW.z; 
 //   v2.x <- vout.NormalW.x; v2.y <- vout.NormalW.y; v2.z <- vout.NormalW.z; 
+//   v3.x <- vout.texCoords.x; v3.y <- vout.texCoords.y; 
 //   o0.x <- <pixelShader return value>.x; o0.y <- <pixelShader return value>.y; o0.z <- <pixelShader return value>.z; o0.w <- <pixelShader return value>.w
 //
-#line 93 "D:\Programming\D3D11\D3D11\Box.hlsl"
+#line 103 "D:\Programming\D3D11\D3D11\Shaders\Box.hlsl"
 mov r0.xyzw, l(0,0,0,0)  // r0.x <- color.x; r0.y <- color.y; r0.z <- color.z; r0.w <- color.w
 
-#line 94
-nop 
-mov r1.xyzw, cb1[0].xyzw
-mov r2.xyzw, cb1[1].xyzw
-mov r3.xyzw, cb1[2].xyzw
-mov r4.xyz, cb1[3].xyzx
-mov r5.xyzw, cb0[12].xyzw
-mov r6.xyzw, cb0[13].xyzw
-mov r7.xyzw, cb0[14].xyzw
-dp3 r4.w, v2.xyzx, v2.xyzx
-rsq r4.w, r4.w
-mul r8.xyz, r4.wwww, v2.xyzx
-mov r9.xyz, v1.xyzx
-
-#line 103
-dp3 r4.w, r4.xyzx, r4.xyzx
-rsq r4.w, r4.w
-mul r4.xyz, r4.wwww, r4.xyzx  // r4.x <- lightDir.x; r4.y <- lightDir.y; r4.z <- lightDir.z
-
 #line 104
-mov r9.xyz, -r9.xyzx
-add r9.xyz, r9.xyzx, cb1[15].xyzx
-dp3 r4.w, r9.xyzx, r9.xyzx
-rsq r4.w, r4.w
-mul r9.xyz, r4.wwww, r9.xyzx  // r9.x <- viewDirW.x; r9.y <- viewDirW.y; r9.z <- viewDirW.z
+mov r1.xyzw, l(1.000000,1.000000,1.000000,1.000000)  // r1.x <- diffTexColor.x; r1.y <- diffTexColor.y; r1.z <- diffTexColor.z; r1.w <- diffTexColor.w
 
-#line 107
-mul r1.xyzw, r1.xyzw, r5.xyzw  // r1.x <- ambient.x; r1.y <- ambient.y; r1.z <- ambient.z; r1.w <- ambient.w
+#line 109
+ine r2.x, l(0, 0, 0, 0), cb0[19].x
 
-#line 110
-dp3 r4.w, r4.xyzx, r8.xyzx
-itof r5.x, l(0)
-max r4.w, r4.w, r5.x  // r4.w <- diffuseFactor
+#line 111
+sample_indexable(texture2d)(float,float,float,float) r3.xyzw, v3.xyxx, t0.xyzw, s0  // r3.x <- diffTexColor.x; r3.y <- diffTexColor.y; r3.z <- diffTexColor.z; r3.w <- diffTexColor.w
 
 #line 113
-ge r5.x, l(0.000000), r4.w
-mov r5.y, l(0.400000)  // r5.y <- diffuseFactor
+movc r1.xyzw, r2.xxxx, r3.xyzw, r1.xyzw  // r1.x <- diffTexColor.x; r1.y <- diffTexColor.y; r1.z <- diffTexColor.z; r1.w <- diffTexColor.w
 
 #line 114
-lt r5.z, l(0.000000), r4.w
-ge r4.w, l(0.500000), r4.w
-and r4.w, r4.w, r5.z
-if_nz r4.w
-  mov r4.w, l(0.600000)  // r4.w <- diffuseFactor
-else   // Prior locations: r5.y <- diffuseFactor
+mov r1.xyzw, r1.xyzw  // r1.x <- texColor.x; r1.y <- texColor.y; r1.z <- texColor.z; r1.w <- texColor.w
 
-#line 115
-  mov r4.w, l(1.000000)  // r4.w <- diffuseFactor
-endif 
-movc r4.w, r5.x, r5.y, r4.w
-
-#line 117
-mul r2.xyzw, r2.xyzw, r4.wwww
-mul r2.xyzw, r6.xyzw, r2.xyzw  // r2.x <- diffuse.x; r2.y <- diffuse.y; r2.z <- diffuse.z; r2.w <- diffuse.w
-
-#line 124
-mov r4.xyz, -r4.xyzx
-dp3 r4.w, r4.xyzx, r8.xyzx
-add r4.w, r4.w, r4.w
-mov r4.w, -r4.w
-mul r5.xyz, r4.wwww, r8.xyzx
-add r4.xyz, r4.xyzx, r5.xyzx  // r4.x <- reflectDir.x; r4.y <- reflectDir.y; r4.z <- reflectDir.z
+#line 116
+nop 
+mov r2.xyzw, cb1[0].xyzw
+mov r3.xyzw, cb1[1].xyzw
+mov r4.xyzw, cb1[2].xyzw
+mov r5.xyz, cb1[3].xyzx
+mov r6.xyzw, cb0[16].xyzw
+mov r7.xyzw, cb0[17].xyzw
+mov r8.xyzw, cb0[18].xyzw
+dp3 r5.w, v2.xyzx, v2.xyzx
+rsq r5.w, r5.w
+mul r9.xyz, r5.wwww, v2.xyzx
+mov r10.xyz, v1.xyzx
+mov r1.xyzw, r1.xyzw
 
 #line 126
-dp3 r4.x, r4.xyzx, r9.xyzx
-itof r4.y, l(0)
-max r4.x, r4.y, r4.x
-log r4.x, r4.x
-mul r4.x, r4.x, r7.w
-exp r4.x, r4.x  // r4.x <- specFactor
+dp3 r5.w, r5.xyzx, r5.xyzx
+rsq r5.w, r5.w
+mul r5.xyz, r5.wwww, r5.xyzx  // r5.x <- lightDir.x; r5.y <- lightDir.y; r5.z <- lightDir.z
 
 #line 127
-ge r4.y, l(0.100000), r4.x
-ge r4.z, r4.x, l(0.000000)
-and r4.y, r4.z, r4.y
-if_nz r4.y
-  mov r4.x, l(0)
-else 
+mov r10.xyz, -r10.xyzx
+add r10.xyz, r10.xyzx, cb1[15].xyzx
+dp3 r5.w, r10.xyzx, r10.xyzx
+rsq r5.w, r5.w
+mul r10.xyz, r5.wwww, r10.xyzx  // r10.x <- viewDirW.x; r10.y <- viewDirW.y; r10.z <- viewDirW.z
 
-#line 128
-  lt r4.y, l(0.100000), r4.x
-  ge r4.z, l(0.800000), r4.x
-  and r4.y, r4.z, r4.y
-  if_nz r4.y
-    mov r4.x, l(0.500000)
-  else 
+#line 130
+mul r2.xyzw, r2.xyzw, r6.xyzw  // r2.x <- ambient.x; r2.y <- ambient.y; r2.z <- ambient.z; r2.w <- ambient.w
 
-#line 129
-    lt r4.y, l(0.800000), r4.x
-    ge r4.z, l(1.000000), r4.x
-    and r4.y, r4.z, r4.y
-    if_nz r4.y
-      mov r4.x, l(0.800000)
-    endif 
-  endif 
-endif 
-
-#line 131
-mul r3.xyzw, r3.xyzw, r4.xxxx
-mul r3.xyzw, r7.xyzw, r3.xyzw  // r3.x <- specular.x; r3.y <- specular.y; r3.z <- specular.z; r3.w <- specular.w
+#line 133
+dp3 r5.w, r5.xyzx, r9.xyzx
+itof r6.x, l(0)
+max r5.w, r5.w, r6.x  // r5.w <- diffuseFactor
 
 #line 134
-add r1.xyzw, r1.xyzw, r2.xyzw
-add r1.xyzw, r3.xyzw, r1.xyzw  // r1.x <- <calculateDirLight return value>.x; r1.y <- <calculateDirLight return value>.y; r1.z <- <calculateDirLight return value>.z; r1.w <- <calculateDirLight return value>.w
+mul r3.xyzw, r3.xyzw, r5.wwww
+mul r3.xyzw, r7.xyzw, r3.xyzw  // r3.x <- diffuse.x; r3.y <- diffuse.y; r3.z <- diffuse.z; r3.w <- diffuse.w
 
-#line 94
-add r0.xyzw, r0.xyzw, r1.xyzw
+#line 137
+mov r6.xyzw, l(0,0,0,0)  // r6.x <- specular.x; r6.y <- specular.y; r6.z <- specular.z; r6.w <- specular.w
 
-#line 97
+#line 139
+lt r5.w, l(0.000000), r5.w
+
+#line 141
+mov r5.xyz, -r5.xyzx
+dp3 r7.x, r5.xyzx, r9.xyzx
+add r7.x, r7.x, r7.x
+mov r7.x, -r7.x
+mul r7.xyz, r7.xxxx, r9.xyzx
+add r5.xyz, r5.xyzx, r7.xyzx  // r5.x <- reflectDir.x; r5.y <- reflectDir.y; r5.z <- reflectDir.z
+
+#line 142
+dp3 r5.x, r5.xyzx, r10.xyzx
+itof r5.y, l(0)
+max r5.x, r5.y, r5.x
+log r5.x, r5.x
+mul r5.x, r5.x, r8.w
+exp r5.x, r5.x  // r5.x <- specFactor
+
+#line 143
+mul r4.xyzw, r4.xyzw, r5.xxxx
+mul r4.xyzw, r8.xyzw, r4.xyzw  // r4.x <- specular.x; r4.y <- specular.y; r4.z <- specular.z; r4.w <- specular.w
+
+#line 144
+movc r4.xyzw, r5.wwww, r4.xyzw, r6.xyzw
+
+#line 146
+add r2.xyzw, r2.xyzw, r3.xyzw
+mul r2.xyzw, r1.xyzw, r2.xyzw
+add r2.xyzw, r4.xyzw, r2.xyzw  // r2.x <- <calculateDirLight return value>.x; r2.y <- <calculateDirLight return value>.y; r2.z <- <calculateDirLight return value>.z; r2.w <- <calculateDirLight return value>.w
+
+#line 116
+add r0.xyzw, r0.xyzw, r2.xyzw
+
+#line 117
+nop 
+mov r2.xyzw, cb1[4].xyzw
+mov r3.xyzw, cb1[5].xyzw
+mov r4.xyzw, cb1[6].xyzw
+mov r5.xyz, cb1[7].xyzx
+mov r5.w, cb1[7].w
+mov r6.xyz, cb1[8].xyzx
+mov r7.xyzw, cb0[16].xyzw
+mov r8.xyzw, cb0[17].xyzw
+mov r9.xyzw, cb0[18].xyzw
+dp3 r6.w, v2.xyzx, v2.xyzx
+rsq r6.w, r6.w
+mul r10.xyz, r6.wwww, v2.xyzx
+mov r11.xyz, v1.xyzx
+mov r1.xyzw, r1.xyzw
+
+#line 152
+mov r12.xyz, -r11.xyzx
+add r5.xyz, r5.xyzx, r12.xyzx  // r5.x <- lightDir.x; r5.y <- lightDir.y; r5.z <- lightDir.z
+
+#line 153
+dp3 r6.w, r5.xyzx, r5.xyzx
+sqrt r12.y, r6.w  // r12.y <- d
+
+#line 155
+lt r5.w, r5.w, r12.y
+if_nz r5.w
+
+#line 156
+  mov r13.xyzw, l(0,0,0,0)
+endif   // r13.x <- <calculatePointLight return value>.x; r13.y <- <calculatePointLight return value>.y; r13.z <- <calculatePointLight return value>.z; r13.w <- <calculatePointLight return value>.w
+
+#line 158
+if_z r5.w
+  div r5.xyz, r5.xyzx, r12.yyyy
+
+#line 159
+  mov r11.xyz, -r11.xyzx
+  add r11.xyz, r11.xyzx, cb1[15].xyzx
+  dp3 r5.w, r11.xyzx, r11.xyzx
+  rsq r5.w, r5.w
+  mul r11.xyz, r5.wwww, r11.xyzx  // r11.x <- viewDirW.x; r11.y <- viewDirW.y; r11.z <- viewDirW.z
+
+#line 162
+  mul r2.xyzw, r2.xyzw, r7.xyzw  // r2.x <- ambient.x; r2.y <- ambient.y; r2.z <- ambient.z; r2.w <- ambient.w
+
+#line 165
+  dp3 r5.w, r5.xyzx, r10.xyzx
+  itof r6.w, l(0)
+  max r5.w, r5.w, r6.w  // r5.w <- diffuseFactor
+
+#line 166
+  mul r3.xyzw, r3.xyzw, r5.wwww
+  mul r3.xyzw, r8.xyzw, r3.xyzw  // r3.x <- diffuse.x; r3.y <- diffuse.y; r3.z <- diffuse.z; r3.w <- diffuse.w
+
+#line 169
+  mov r7.xyzw, l(0,0,0,0)  // r7.x <- specular.x; r7.y <- specular.y; r7.z <- specular.z; r7.w <- specular.w
+
+#line 171
+  lt r5.w, l(0.000000), r5.w
+
+#line 173
+  mov r5.xyz, -r5.xyzx
+  dp3 r6.w, r5.xyzx, r10.xyzx
+  add r6.w, r6.w, r6.w
+  mov r6.w, -r6.w
+  mul r8.xyz, r6.wwww, r10.xyzx
+  add r5.xyz, r5.xyzx, r8.xyzx  // r5.x <- reflectDir.x; r5.y <- reflectDir.y; r5.z <- reflectDir.z
+
+#line 174
+  dp3 r5.x, r5.xyzx, r11.xyzx
+  itof r5.y, l(0)
+  max r5.x, r5.y, r5.x
+  log r5.x, r5.x
+  mul r5.x, r5.x, r9.w
+  exp r5.x, r5.x  // r5.x <- specFactor
+
+#line 175
+  mul r4.xyzw, r4.xyzw, r5.xxxx
+  mul r4.xyzw, r9.xyzw, r4.xyzw  // r4.x <- specular.x; r4.y <- specular.y; r4.z <- specular.z; r4.w <- specular.w
+
+#line 176
+  movc r4.xyzw, r5.wwww, r4.xyzw, r7.xyzw
+
+#line 178
+  mul r12.z, r12.y, r12.y
+  mov r12.x, l(1.000000)
+  dp3 r5.x, r6.xyzx, r12.xyzx
+  div r5.x, l(1.000000), r5.x  // r5.x <- intensity
+
+#line 179
+  mul r3.xyzw, r3.xyzw, r5.xxxx
+
+#line 180
+  mul r4.xyzw, r4.xyzw, r5.xxxx
+
+#line 182
+  add r2.xyzw, r2.xyzw, r3.xyzw
+  mul r2.xyzw, r1.xyzw, r2.xyzw
+  add r13.xyzw, r4.xyzw, r2.xyzw
+endif 
+
+#line 117
+add r0.xyzw, r0.xyzw, r13.xyzw
+
+#line 118
+nop 
+mov r2.xyzw, cb1[9].xyzw
+mov r3.xyzw, cb1[10].xyzw
+mov r4.xyzw, cb1[11].xyzw
+mov r5.xyz, cb1[12].xyzx
+mov r6.xyz, cb1[13].xyzx
+mov r7.xyz, cb1[14].xyzx
+mov r5.w, cb1[12].w
+mov r6.w, cb1[14].w
+mov r8.xyzw, cb0[16].xyzw
+mov r9.xyzw, cb0[17].xyzw
+mov r10.xyzw, cb0[18].xyzw
+dp3 r7.w, v2.xyzx, v2.xyzx
+rsq r7.w, r7.w
+mul r11.xyz, r7.wwww, v2.xyzx
+mov r12.xyz, v1.xyzx
+mov r1.xyzw, r1.xyzw
+
+#line 188
+mov r13.xyz, -r12.xyzx
+add r5.xyz, r5.xyzx, r13.xyzx  // r5.x <- lightDir.x; r5.y <- lightDir.y; r5.z <- lightDir.z
+
+#line 189
+dp3 r7.w, r5.xyzx, r5.xyzx
+sqrt r13.y, r7.w  // r13.y <- d
+
+#line 191
+lt r5.w, r5.w, r13.y
+if_nz r5.w
+
+#line 192
+  mov r14.xyzw, l(0,0,0,0)
+endif   // r14.x <- <calculateSpotLight return value>.x; r14.y <- <calculateSpotLight return value>.y; r14.z <- <calculateSpotLight return value>.z; r14.w <- <calculateSpotLight return value>.w
+
+#line 194
+if_z r5.w
+  div r5.xyz, r5.xyzx, r13.yyyy
+
+#line 195
+  mov r12.xyz, -r12.xyzx
+  add r12.xyz, r12.xyzx, cb1[15].xyzx
+  dp3 r5.w, r12.xyzx, r12.xyzx
+  rsq r5.w, r5.w
+  mul r12.xyz, r5.wwww, r12.xyzx  // r12.x <- viewDirW.x; r12.y <- viewDirW.y; r12.z <- viewDirW.z
+
+#line 198
+  mul r2.xyzw, r2.xyzw, r8.xyzw  // r2.x <- ambient.x; r2.y <- ambient.y; r2.z <- ambient.z; r2.w <- ambient.w
+
+#line 201
+  dp3 r5.w, r5.xyzx, r11.xyzx
+  itof r7.w, l(0)
+  max r5.w, r5.w, r7.w  // r5.w <- diffuseFactor
+
+#line 202
+  mul r3.xyzw, r3.xyzw, r5.wwww
+  mul r3.xyzw, r9.xyzw, r3.xyzw  // r3.x <- diffuse.x; r3.y <- diffuse.y; r3.z <- diffuse.z; r3.w <- diffuse.w
+
+#line 205
+  mov r8.xyzw, l(0,0,0,0)  // r8.x <- specular.x; r8.y <- specular.y; r8.z <- specular.z; r8.w <- specular.w
+
+#line 207
+  lt r5.w, l(0.000000), r5.w
+
+#line 209
+  mov r9.xyz, -r5.xyzx
+  dp3 r7.w, r9.xyzx, r11.xyzx
+  add r7.w, r7.w, r7.w
+  mov r7.w, -r7.w
+  mul r11.xyz, r7.wwww, r11.xyzx
+  add r9.xyz, r9.xyzx, r11.xyzx  // r9.x <- reflectDir.x; r9.y <- reflectDir.y; r9.z <- reflectDir.z
+
+#line 210
+  dp3 r7.w, r9.xyzx, r12.xyzx
+  itof r9.x, l(0)
+  max r7.w, r7.w, r9.x
+  log r7.w, r7.w
+  mul r7.w, r7.w, r10.w
+  exp r7.w, r7.w  // r7.w <- specFactor
+
+#line 211
+  mul r4.xyzw, r4.xyzw, r7.wwww
+  mul r4.xyzw, r10.xyzw, r4.xyzw  // r4.x <- specular.x; r4.y <- specular.y; r4.z <- specular.z; r4.w <- specular.w
+
+#line 212
+  movc r4.xyzw, r5.wwww, r4.xyzw, r8.xyzw
+
+#line 214
+  mul r13.z, r13.y, r13.y
+  mov r13.x, l(1.000000)
+  dp3 r5.w, r6.xyzx, r13.xyzx
+  div r5.w, l(1.000000), r5.w  // r5.w <- intensity
+
+#line 215
+  mul r3.xyzw, r3.xyzw, r5.wwww
+
+#line 216
+  mul r4.xyzw, r4.xyzw, r5.wwww
+
+#line 218
+  dp3 r5.w, r7.xyzx, r7.xyzx
+  rsq r5.w, r5.w
+  mul r6.xyz, r5.wwww, r7.xyzx
+  mov r5.xyz, -r5.xyzx
+  dp3 r5.x, r6.xyzx, r5.xyzx
+  itof r5.y, l(0)
+  max r5.x, r5.y, r5.x
+  log r5.x, r5.x
+  mul r5.x, r5.x, r6.w
+  exp r5.x, r5.x  // r5.x <- spotFactor
+
+#line 219
+  add r2.xyzw, r2.xyzw, r3.xyzw
+  mul r1.xyzw, r1.xyzw, r2.xyzw
+  add r1.xyzw, r4.xyzw, r1.xyzw
+  mul r14.xyzw, r1.xyzw, r5.xxxx
+endif 
+
+#line 118
+add r0.xyzw, r0.xyzw, r14.xyzw
+
+#line 120
 mov o0.xyzw, r0.xyzw
 ret 
-// Approximately 77 instruction slots used
+// Approximately 197 instruction slots used

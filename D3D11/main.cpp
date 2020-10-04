@@ -196,7 +196,7 @@ void InitD3DApp::buildShaderData()
 	}
 	ThrowIfFailed(result);
 #else  //Offline shader compilation
-	compiledCode = loadShaderCodeFromFile("box_vs.cso");
+	compiledCode = loadShaderCodeFromFile("Shaders/box_vs.cso");
 #endif
 	ThrowIfFailed(d3dDevice->CreateVertexShader(compiledCode->GetBufferPointer(), compiledCode->GetBufferSize(),
 		nullptr, vertexShader.GetAddressOf()));
@@ -226,13 +226,14 @@ void InitD3DApp::buildShaderData()
 	}
 	ThrowIfFailed(result);
 #else
-	compiledCode = loadShaderCodeFromFile("box_ps.cso");
+	compiledCode = loadShaderCodeFromFile("Shaders/box_ps.cso");
 #endif
 	ThrowIfFailed(d3dDevice->CreatePixelShader(compiledCode->GetBufferPointer(), compiledCode->GetBufferSize(),
 		nullptr, pixelShader.GetAddressOf()));
 	ID3D11ShaderReflection* reflectionInterface;
 	D3DReflect(compiledCode->GetBufferPointer(), compiledCode->GetBufferSize(), IID_ID3D11ShaderReflection, (void**)&reflectionInterface);
 
+	//Used to check which register given resource is bound to in shader file
 	D3D11_SHADER_INPUT_BIND_DESC bindDesc;
 	reflectionInterface->GetResourceBindingDescByName("diffuseMap", &bindDesc);
 }
