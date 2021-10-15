@@ -16,7 +16,7 @@ d3dApp::d3dApp(HINSTANCE appInstance) : appInstance{appInstance}
 }
 
 //-----------------
-bool d3dApp::init()
+bool d3dApp::init() 
 {
 	if (!initWindowApp())
 	{
@@ -52,19 +52,14 @@ bool d3dApp::initWindowApp()
 		return false;
 	}
 
-	RECT r{ 0, 0, appWidth, appHeight };
-	AdjustWindowRect(&r, WS_OVERLAPPEDWINDOW, false);
-	int width = r.right - r.left;
-	int height = r.bottom - r.top;
-
 	//Create Window
 	appWindow = CreateWindow(L"D3D11WndClass",
 		windowName,
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
-		width,
-		height,
+		appWidth,
+		appHeight,
 		0,
 		0,
 		appInstance,
@@ -101,7 +96,7 @@ bool d3dApp::initD3D()
 		D3D11_SDK_VERSION,
 		d3dDevice.GetAddressOf(),
 		&featLevel,
-		immediateContext.GetAddressOf()
+		d3dImmediateContext.GetAddressOf()
 	);
 
 	if (FAILED(hr))
@@ -150,7 +145,7 @@ bool d3dApp::initD3D()
 	swapDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 	
 	//Create Swap Chain
-	ComPtr<IDXGIDevice> device;
+	ComPtr<IDXGIDevice> device; //Why not void* device? Because it is a compile time error. A void pointer cannot call QueryInterface function.
 	ThrowIfFailed(d3dDevice->QueryInterface(__uuidof(IDXGIDevice), (void**)device.GetAddressOf()));
 
 	ComPtr<IDXGIAdapter> devAdapter;
@@ -173,7 +168,7 @@ bool d3dApp::initD3D()
 void d3dApp::onResize()
 {
 	assert(d3dDevice);
-	assert(immediateContext);
+	assert(d3dImmediateContext);
 	assert(swapChain);
 
 	depthStencilView.Reset();
@@ -209,11 +204,12 @@ void d3dApp::onResize()
 		texDesc.SampleDesc.Quality = 0;
 	}
 
+	//Create Depth/Stencil View
 	ThrowIfFailed(d3dDevice->CreateTexture2D(&texDesc, 0, depthStencilBuffer.GetAddressOf()));
 	ThrowIfFailed(d3dDevice->CreateDepthStencilView(depthStencilBuffer.Get(), 0, depthStencilView.GetAddressOf()));
 
 	//Bind render target view and depthStencil view to output merger state
-	immediateContext->OMSetRenderTargets(1, renderTargetView.GetAddressOf(), depthStencilView.Get());
+	d3dImmediateContext->OMSetRenderTargets(1, renderTargetView.GetAddressOf(), depthStencilView.Get());
 
 	//Set Viewport
 	mainViewPort.TopLeftX = 0.0f;
@@ -223,7 +219,7 @@ void d3dApp::onResize()
 	mainViewPort.MinDepth = 0.0f;
 	mainViewPort.MaxDepth = 1.0f;
 
-	immediateContext->RSSetViewports(1, &mainViewPort);
+	d3dImmediateContext->RSSetViewports(1, &mainViewPort);
 }
 
 //-----------------------------------------------------------------
@@ -570,8 +566,8 @@ float d3dApp::aspectRatio()
 	return static_cast<float>(appWidth) / appHeight;
 }
 
-//-----------------------------
-XMFLOAT4 d3dApp::getCameraPos()
+//------------------------------------
+const XMFLOAT4& d3dApp::getCameraPos()
 {
 	return camPos;
 }
@@ -582,5 +578,16 @@ XMFLOAT3 d3dApp::getCameraTarget()
 	return camLookAt;
 }
 
-//------------------
-d3dApp::~d3dApp() {}
+//---------------
+d3dApp::~d3dApp() 
+{
+#if defined(REPORT_LIVE_OBJECTS)
+	ComPtr<ID3D11Debug>  debug;
+	ThrowIfFailed(d3dDevice.As(&debug));
+	ThrowIfFailed(debug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL));
+
+	ComPtr<IDXGIDebug> dxgiDebug;
+	ThrowIfFailed(DXGIGetDebugInterface1(0, __uuidof(IDXGIDebug), (void**)dxgiDebug.GetAddressOf()));
+	ThrowIfFailed(dxgiDebug->ReportLiveObjects(DXGI_DEBUG_DXGI, DXGI_DEBUG_RLO_DETAIL));
+#endif
+}

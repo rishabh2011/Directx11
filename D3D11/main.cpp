@@ -21,7 +21,8 @@ struct cbufferPerObject
 	XMMATRIX world;
 	XMMATRIX texTransformMatrix;
 	Material material;
-	bool useTexture;
+	int useTexture;
+	int clipAlpha;
 } cbufferperobject;
 
 class InitD3DApp : public d3dApp
@@ -30,6 +31,7 @@ private:
 
 	ComPtr<ID3D11InputLayout> inputLayout;
 	ComPtr<ID3D11RasterizerState> rastState;
+	ComPtr<ID3D11BlendState> blendState;
 
 	ComPtr<ID3D11Buffer> constantBufferPerObject;
 	ComPtr<ID3D11Buffer> constantBufferPerFrame;
@@ -40,7 +42,13 @@ private:
 	XMFLOAT4X4 fViewMatrix;
 	XMFLOAT4X4 fProjMatrix;
 
+	//Models
 	Model cubeModel{ sizeof(VertexNormTex), 36 };
+	std::vector<XMFLOAT3> cubeTranslateVectors;
+
+	Model quadModel{ sizeof(VertexNormTex), 6 };
+	std::vector<XMFLOAT3> quadTranslateVectors;	
+	std::map<float, XMFLOAT3, std::less<float>> quadDistancesFromCamera;
 
 public:
 
@@ -60,7 +68,7 @@ protected:
 	void setupLightingData();
 	void setupModelTextureData();
 	void setupSamplerState();
-	void createRasterizerStates();
+	void createRasterizerBlendStates();
 };
 
 //------------------------------------------------------------------------------------------
@@ -94,8 +102,18 @@ InitD3DApp::InitD3DApp(HINSTANCE appInstance) : d3dApp(appInstance)
 	XMStoreFloat4x4(&fViewMatrix, identity);
 	XMStoreFloat4x4(&fProjMatrix, identity);
 	
-	camPos = { 0.0f, 0.0f, -2.5f, 1.0f };
+	camPos = { 0.0f, 0.0f, -5.0f, 1.0f };
 	camLookAt = { 0.0f, 0.0f, 1.0f };
+
+	cubeTranslateVectors.push_back({ 0.5f, -1.0f, -2.0f });
+	cubeTranslateVectors.push_back({ 1.0f, -0.5f, -0.5f });
+	cubeTranslateVectors.push_back({ -0.5f, 0.47f, 0.4f });
+	
+	quadTranslateVectors.push_back({ 1.0f, -1.0f, -2.2f });
+	quadTranslateVectors.push_back({ 0.0f, -0.5f, -1.0f });
+	quadTranslateVectors.push_back({ 0.27f, 0.47f, 0.3f });
+	quadTranslateVectors.push_back({ 0.0f,  0.0f, -2.4f });
+	quadTranslateVectors.push_back({ 0.0f,  0.83f, 0.0f });
 }
 
 //--------------------------
@@ -111,7 +129,7 @@ bool InitD3DApp::init()
 	setupLightingData();
 	setupModelTextureData();
 	setupSamplerState();
-	createRasterizerStates();
+	createRasterizerBlendStates();
 	
 	return true;
 }
@@ -119,7 +137,9 @@ bool InitD3DApp::init()
 //----------------------------------
 void InitD3DApp::buildGeometryData()
 {
-	//Cube
+	//-----------------------------------------------------//
+	//-----------------------CUBE--------------------------//
+	//-----------------------------------------------------//
 	calculateNormals(cubeVertices, 24, cubeIndices, 12);
 	
 	//Define buffer desc
@@ -152,23 +172,40 @@ void InitD3DApp::buildGeometryData()
 
 	ThrowIfFailed(d3dDevice->CreateBuffer(&idxDesc, &idxData, cubeModel.indexBuffer.GetAddressOf()));
 
-	//Create Constant Buffer
-	D3D11_BUFFER_DESC constDesc;
-	ZeroMemory(&constDesc, sizeof(D3D11_BUFFER_DESC));
-	constDesc.ByteWidth = sizeof(cbufferPerObject);
-	constDesc.Usage = D3D11_USAGE_DYNAMIC;
-	constDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	constDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
-	ThrowIfFailed(d3dDevice->CreateBuffer(&constDesc, nullptr, constantBufferPerObject.GetAddressOf()));
-
-	constDesc.ByteWidth = sizeof(cbufferPerFrame);
-	ThrowIfFailed(d3dDevice->CreateBuffer(&constDesc, nullptr, constantBufferPerFrame.GetAddressOf()));
-
 	//Setup World Matrix
 	XMMATRIX translate = XMMatrixTranslation(0.0f, -1.0f, 0.0f);
 	XMMATRIX rotation = XMMatrixRotationAxis(XMVECTORF32{ 0.0f, 1.0f, 0.0f }, XMConvertToRadians(45.0f));
 	XMStoreFloat4x4(&cubeModel.worldMatrix, rotation * translate);
+
+	//-----------------------------------------------------//
+	//-----------------------QUAD--------------------------//
+	//-----------------------------------------------------//
+	calculateNormals(quadVertices, 4, quadIndices, 2);
+
+	vbDesc.ByteWidth = sizeof(VertexNormTex) * 4;
+	vbData.pSysMem = quadVertices;
+	ThrowIfFailed(d3dDevice->CreateBuffer(&vbDesc, &vbData, quadModel.vertexBuffer.GetAddressOf()));
+	
+	idxDesc.ByteWidth = sizeof(unsigned int) * 6;
+	idxData.pSysMem = quadIndices;
+	ThrowIfFailed(d3dDevice->CreateBuffer(&idxDesc, &idxData, quadModel.indexBuffer.GetAddressOf()));
+		
+	//----------------
+	//CONSTANT BUFFERS
+	//----------------
+	D3D11_BUFFER_DESC constDesc;
+	ZeroMemory(&constDesc, sizeof(D3D11_BUFFER_DESC));
+	constDesc.ByteWidth = sizeof(cbufferPerObject);
+	constDesc.Usage = D3D11_USAGE_DEFAULT;
+	constDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	//constDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+	ThrowIfFailed(d3dDevice->CreateBuffer(&constDesc, nullptr, constantBufferPerObject.GetAddressOf()));
+
+	constDesc.Usage = D3D11_USAGE_DYNAMIC;
+	constDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	constDesc.ByteWidth = sizeof(cbufferPerFrame);
+	ThrowIfFailed(d3dDevice->CreateBuffer(&constDesc, nullptr, constantBufferPerFrame.GetAddressOf()));	
 }
 
 //--------------------------------
@@ -196,7 +233,7 @@ void InitD3DApp::buildShaderData()
 	}
 	ThrowIfFailed(result);
 #else  //Offline shader compilation
-	compiledCode = loadShaderCodeFromFile("Shaders/box_vs.cso");
+	compiledCode = loadCompiledShaderCodeFromFile("Shaders/box_vs.cso");
 #endif
 	ThrowIfFailed(d3dDevice->CreateVertexShader(compiledCode->GetBufferPointer(), compiledCode->GetBufferSize(),
 		nullptr, vertexShader.GetAddressOf()));
@@ -226,7 +263,7 @@ void InitD3DApp::buildShaderData()
 	}
 	ThrowIfFailed(result);
 #else
-	compiledCode = loadShaderCodeFromFile("Shaders/box_ps.cso");
+	compiledCode = loadCompiledShaderCodeFromFile("Shaders/box_ps.cso");
 #endif
 	ThrowIfFailed(d3dDevice->CreatePixelShader(compiledCode->GetBufferPointer(), compiledCode->GetBufferSize(),
 		nullptr, pixelShader.GetAddressOf()));
@@ -241,11 +278,16 @@ void InitD3DApp::buildShaderData()
 //----------------------------------
 void InitD3DApp::setupLightingData()
 {
-	//Material settings
+	//Cube Material settings
 	cubeModel.material.ambientColor = {0.5f, 0.5f, 0.5f, 1.0f};
 	cubeModel.material.diffuseColor = { 0.8f, 0.8f, 0.8f, 1.0f };
 	cubeModel.material.specColor = { 1.0f, 1.0f, 1.0f, 8.0f };  //w = specular Power
 
+	//Quad Material settings
+	quadModel.material.ambientColor = { 0.5f, 0.5f, 0.5f, 1.0f };
+	quadModel.material.diffuseColor = { 0.8f, 0.8f, 0.8f, 1.0f };
+	quadModel.material.specColor = { 1.0f, 1.0f, 1.0f, 8.0f };  //w = specular Power
+	
 	//Directional Light settings
 	cbufferperframe.dirLight.ambientColor = { 0.8f, 0.8f, 0.8f, 1.0f };
 	cbufferperframe.dirLight.diffuseColor = { 0.8f, 0.8f, 0.8f, 1.0f };
@@ -272,8 +314,10 @@ void InitD3DApp::setupLightingData()
 //--------------------------------------
 void InitD3DApp::setupModelTextureData()
 {
-	//Cube texture
-	for (size_t i = 0; i < 120; i++)
+	//-----------------------------------------------------//
+	//-----------------------CUBE--------------------------//
+	//-----------------------------------------------------//
+	/*for (size_t i = 0; i < 120; i++)
 	{
 		std::wstring fileNumber;
 		if (i < 9)
@@ -289,13 +333,18 @@ void InitD3DApp::setupModelTextureData()
 			fileNumber = std::to_wstring(i + 1);			
 		}
 
-		createShaderResourceViewFromImageFile(L"FireAnim/Fire" + fileNumber + L".bmp", d3dDevice, immediateContext, texType::WIC, &cubeModel.texViews[i]);
-	}
-	/*createShaderResourceViewFromImageFile(L"flare.dds", d3dDevice, immediateContext, texType::DDS, &cubeModel.texViews[0]);
-	createShaderResourceViewFromImageFile(L"flarealpha.dds", d3dDevice, immediateContext, texType::DDS, &cubeModel.texViews[1]);*/
+		createShaderResourceViewFromImageFile(L"Images/FireAnim/Fire" + fileNumber + L".bmp", d3dDevice, immediateContext, texType::WIC, &cubeModel.texViews[i]);
+	}*/
+	createShaderResourceViewFromImageFile(L"Images/WireFence.dds", d3dDevice, d3dImmediateContext, texType::DDS, &cubeModel.texViews[0]);
+	
 	XMMATRIX mtexTransformMatrix = XMLoadFloat4x4(&cubeModel.texTransformMatrix);
 	mtexTransformMatrix *= XMMatrixScaling(1.0f, 1.0f, 0.0f);
 	XMStoreFloat4x4(&cubeModel.texTransformMatrix, mtexTransformMatrix);
+
+	//-----------------------------------------------------//
+	//-----------------------QUAD--------------------------//
+	//-----------------------------------------------------//
+	createShaderResourceViewFromImageFile(L"Images/transWindow.png", d3dDevice, d3dImmediateContext, texType::WIC, &quadModel.texViews[0]);	
 }
 
 //----------------------------------
@@ -314,19 +363,34 @@ void InitD3DApp::setupSamplerState()
 	desc.BorderColor[2] = 0.0f;	
 	desc.BorderColor[3] = 1.0f;*/
 
-	ThrowIfFailed(d3dDevice->CreateSamplerState(&desc, cubeModel.sampler.GetAddressOf()));		
+	ThrowIfFailed(d3dDevice->CreateSamplerState(&desc, cubeModel.sampler.GetAddressOf()));	
+	ThrowIfFailed(d3dDevice->CreateSamplerState(&desc, quadModel.sampler.GetAddressOf()));	
 }
 
-//---------------------------------------
-void InitD3DApp::createRasterizerStates()
+//--------------------------------------------
+void InitD3DApp::createRasterizerBlendStates()
 {
 	D3D11_RASTERIZER_DESC rastDesc;
 	ZeroMemory(&rastDesc, sizeof(rastDesc));
 	rastDesc.FillMode = D3D11_FILL_SOLID;
-	rastDesc.CullMode = D3D11_CULL_BACK;
+	rastDesc.CullMode = D3D11_CULL_NONE;
 	rastDesc.FrontCounterClockwise = false;
 	rastDesc.DepthClipEnable = true;
 	ThrowIfFailed(d3dDevice->CreateRasterizerState(&rastDesc, rastState.GetAddressOf()));
+
+	D3D11_BLEND_DESC blendDesc;
+	ZeroMemory(&blendDesc, sizeof(blendDesc));
+	blendDesc.AlphaToCoverageEnable = false;
+	blendDesc.IndependentBlendEnable = false;
+	blendDesc.RenderTarget[0].BlendEnable = true;
+	blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	ThrowIfFailed(d3dDevice->CreateBlendState(&blendDesc, blendState.GetAddressOf()))
 }
 
 //-------------------------
@@ -334,7 +398,7 @@ void InitD3DApp::onResize()
 {
 	d3dApp::onResize();
 
-	//Calculate new projection matrix
+	//Calculate new Projection Matrix
 	XMMATRIX mProjMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(45.0f), aspectRatio(), 0.1f, 1000.0f);
 	XMStoreFloat4x4(&fProjMatrix, mProjMatrix);
 }
@@ -360,28 +424,28 @@ void InitD3DApp::updateScene(float deltaTime)
 void InitD3DApp::drawScene()
 {
 	assert(swapChain);
-	assert(immediateContext);
+	assert(d3dImmediateContext);
 
-	immediateContext->ClearRenderTargetView(renderTargetView.Get(), Colors::Black);
-	immediateContext->ClearDepthStencilView(depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+	d3dImmediateContext->ClearRenderTargetView(renderTargetView.Get(), Colors::White);
+	d3dImmediateContext->ClearDepthStencilView(depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 	//Set shader programs
-	immediateContext->VSSetShader(vertexShader.Get(), 0, 0);
-	immediateContext->PSSetShader(pixelShader.Get(), 0, 0);
+	d3dImmediateContext->VSSetShader(vertexShader.Get(), 0, 0);
+	d3dImmediateContext->PSSetShader(pixelShader.Get(), 0, 0);
 
 	//Set Rasterizer state
-	immediateContext->RSSetState(rastState.Get());
-
+	d3dImmediateContext->RSSetState(rastState.Get());
+	
 	//Set Constant Buffers
-	immediateContext->VSSetConstantBuffers(0, 1, constantBufferPerObject.GetAddressOf());
-	immediateContext->PSSetConstantBuffers(0, 1, constantBufferPerObject.GetAddressOf());
-	immediateContext->PSSetConstantBuffers(1, 1, constantBufferPerFrame.GetAddressOf());
+	d3dImmediateContext->VSSetConstantBuffers(0, 1, constantBufferPerObject.GetAddressOf());
+	d3dImmediateContext->PSSetConstantBuffers(0, 1, constantBufferPerObject.GetAddressOf());
+	d3dImmediateContext->PSSetConstantBuffers(1, 1, constantBufferPerFrame.GetAddressOf());
 
 	//Set Input Layout
-	immediateContext->IASetInputLayout(inputLayout.Get());
+	d3dImmediateContext->IASetInputLayout(inputLayout.Get());
 
 	//Set primitive topology
-	immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	d3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	//CBUFFER PER FRAME
 	D3D11_MAPPED_SUBRESOURCE mappedSubResource;
@@ -389,17 +453,50 @@ void InitD3DApp::drawScene()
 	XMFLOAT3 spotLightDir = getCameraTarget();
 
 	cbufferperframe.viewPos = getCameraPos();
-	cbufferperframe.spotLight.lightPos = spotLightPos;
+//	cbufferperframe.spotLight.lightPos = spotLightPos;
 	cbufferperframe.spotLight.lightDir = spotLightDir;
 
 	ZeroMemory(&mappedSubResource, sizeof(mappedSubResource));
-	immediateContext->Map(constantBufferPerFrame.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubResource);
+	d3dImmediateContext->Map(constantBufferPerFrame.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubResource);
 	memcpy(mappedSubResource.pData, &cbufferperframe, sizeof(cbufferPerFrame));
-	immediateContext->Unmap(constantBufferPerFrame.Get(), 0);
-
+	d3dImmediateContext->Unmap(constantBufferPerFrame.Get(), 0);
+	
 	//Draw Cube
-	cubeModel.performInefficientAnimation(gameTimer);
-	drawObjectIndexed(&cubeModel);
+	//cubeModel.performInefficientAnimation(gameTimer);
+	for (size_t i = 0; i < cubeTranslateVectors.size(); i++)
+	{
+		XMMATRIX translate = XMMatrixTranslation(cubeTranslateVectors[i].x, cubeTranslateVectors[i].y, cubeTranslateVectors[i].z);
+		XMStoreFloat4x4(&cubeModel.worldMatrix, translate);
+		cubeModel.clipAlpha = true;
+		drawObjectIndexed(&cubeModel);
+	}
+	
+	//Enable blending
+	d3dImmediateContext->RSSetState(0);
+	float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	d3dImmediateContext->OMSetBlendState(blendState.Get(), blendFactor, 0xffffffff);
+
+	//Calculate drawing order of quads according to distance from camera
+	for (size_t i = 0; i < quadTranslateVectors.size(); i++)
+	{
+		XMVECTOR viewPos = XMLoadFloat4(&cbufferperframe.viewPos);
+		XMVECTOR quadPos = XMLoadFloat3(&quadTranslateVectors[i]);
+		XMVECTOR diff = XMVectorSubtract(viewPos, quadPos);
+		XMVECTOR xDistance = XMVector3Length(diff);
+
+		XMFLOAT3 fDistance;
+		XMStoreFloat3(&fDistance, xDistance);
+		float distance = fDistance.x;   //All components hold the same length value
+
+		quadDistancesFromCamera[distance] = quadTranslateVectors[i];
+	}
+	//Draw Quads in reverse order i.e. furthest quad from camera is drawn first (std::map is using ascending order)
+	for (auto i = quadDistancesFromCamera.crbegin(); i != quadDistancesFromCamera.crend(); i++)
+	{
+		XMMATRIX translate = XMMatrixTranslation(i->second.x, i->second.y, i->second.z);
+		XMStoreFloat4x4(&quadModel.worldMatrix, translate);
+		drawObjectIndexed(&quadModel);
+	}
 
 	ThrowIfFailed(swapChain->Present(0, 0));
 }
@@ -424,33 +521,35 @@ void InitD3DApp::drawObjectIndexed(const Model* model)
 	//World Inverse Transpose Matrix
 	XMMATRIX worldInvTranspose;
 	//No transpose as we have to store matrix in column format for it to be stored as row format in hlsl
-	worldInvTranspose = XMMatrixInverse(&XMMatrixDeterminant(world), world);
+	//worldInvTranspose = XMMatrixInverse(&XMMatrixDeterminant(world), world);
 
 	XMMATRIX mTexTransformMatrix = XMLoadFloat4x4(&model->texTransformMatrix);
 
-	cbufferperobject.worldInvTranspose = worldInvTranspose;
+//	cbufferperobject.worldInvTranspose = worldInvTranspose;
 	cbufferperobject.worldViewProj = worldViewProj;
 	cbufferperobject.world = XMMatrixTranspose(world);
 	cbufferperobject.material = model->material;
 	cbufferperobject.useTexture = model->useTexture;
+	cbufferperobject.clipAlpha = model->clipAlpha;
 	cbufferperobject.texTransformMatrix = XMMatrixTranspose(mTexTransformMatrix);
 
-	D3D11_MAPPED_SUBRESOURCE mappedSubResource;
+	/*D3D11_MAPPED_SUBRESOURCE mappedSubResource;
 	ZeroMemory(&mappedSubResource, sizeof(mappedSubResource));
-	immediateContext->Map(constantBufferPerObject.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubResource);
+	d3dImmediateContext->Map(constantBufferPerObject.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubResource);
 	memcpy(mappedSubResource.pData, &cbufferperobject, sizeof(cbufferPerObject));
-	immediateContext->Unmap(constantBufferPerObject.Get(), 0);
+	d3dImmediateContext->Unmap(constantBufferPerObject.Get(), 0);*/
+	d3dImmediateContext->UpdateSubresource(constantBufferPerObject.Get(), 0, 0, &cbufferperobject, 0, 0);
 
 	//=================================================//
 
 	//Set Buffers
-	immediateContext->IASetVertexBuffers(0, 1, model->vertexBuffer.GetAddressOf(), &model->stride, &model->offset);
-	immediateContext->IASetIndexBuffer(model->indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+	d3dImmediateContext->IASetVertexBuffers(0, 1, model->vertexBuffer.GetAddressOf(), &model->stride, &model->offset);
+	d3dImmediateContext->IASetIndexBuffer(model->indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
 
 	//Bind Textures
-	immediateContext->PSSetShaderResources(0, 1, model->texViews[model->currentFrame].GetAddressOf());
-	immediateContext->PSSetSamplers(0, 1, model->sampler.GetAddressOf());
+	d3dImmediateContext->PSSetShaderResources(0, 1, model->texViews[model->currentFrame].GetAddressOf());
+	d3dImmediateContext->PSSetSamplers(0, 1, model->sampler.GetAddressOf());
 
 	//Draw
-	immediateContext->DrawIndexed(model->indexCount, model->startIndex, model->baseVertex);
+	d3dImmediateContext->DrawIndexed(model->indexCount, model->startIndex, model->baseVertex);
 }

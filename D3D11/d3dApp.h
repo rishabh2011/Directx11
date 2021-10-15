@@ -19,15 +19,15 @@ protected:
 	//--------------Device Vars----------------------//
 	UINT createDeviceFlags{ 0 };
 	ComPtr<ID3D11Device> d3dDevice;
-	ComPtr<ID3D11DeviceContext> immediateContext;
+	ComPtr<ID3D11DeviceContext> d3dImmediateContext;
 
 	//MSAA vars
 	UINT msaaQualityLevels{ 0 };
 	bool msaaEnabled{ true };
 
 	//App Resolution
-	int appWidth{ 800 };
-	int appHeight{ 600 };
+	int appWidth{ 1920 };
+	int appHeight{ 1080 };
 
 	//Swap Chain
 	ComPtr<IDXGISwapChain> swapChain;
@@ -70,7 +70,7 @@ public:
 	virtual void onMouseButtonUp(WPARAM wParam, int x, int y) {}
 	virtual void onMouseMove(WPARAM wParam, int x, int y);
 
-	XMFLOAT4 getCameraPos();
+	const XMFLOAT4& getCameraPos();
 	XMFLOAT3 getCameraTarget();
 
 protected:

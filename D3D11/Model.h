@@ -54,6 +54,7 @@ public:
 	float frameChangeTimer { 1.0f / 30.0f };
 	int currentFrame{ 0 };
 	bool useTexture{ true };	
+	bool clipAlpha{ false };
 	float uOffset{ 0.0f };
 	float vOffset{ 0.0f };
 
@@ -139,4 +140,23 @@ unsigned int cubeIndices[] = {
 	//Back Face
 	20, 21, 22,
 	20, 22, 23
+};
+
+//-----------------------------------------------------//
+//-----------------------QUAD--------------------------//
+//-----------------------------------------------------//
+VertexNormTex quadVertices[] =
+{
+	//Front Face								  
+	{XMFLOAT3{-0.5f, -0.5f, -0.5f},  XMFLOAT3(),  XMFLOAT2{0.0f, 1.0f}},  //Bottom Left - 0
+	{XMFLOAT3{-0.5f,  0.5f, -0.5f},	 XMFLOAT3(),  XMFLOAT2{0.0f, 0.0f}},  //Top Left - 1
+	{XMFLOAT3{ 0.5f,  0.5f, -0.5f},	 XMFLOAT3(),  XMFLOAT2{1.0f, 0.0f}},  //Top Right - 2
+	{XMFLOAT3{ 0.5f, -0.5f, -0.5f},	 XMFLOAT3(),  XMFLOAT2{1.0f, 1.0f}},  //Bottom Right - 3
+};
+
+//Cube Indices
+unsigned int quadIndices[] = {
+	//Top Face
+	0, 1, 2,
+	0, 2, 3,
 };

@@ -56,7 +56,8 @@ cbuffer cbperobject
     float4x4 gWorld;
     float4x4 gTexTransform;
     Material material;
-    bool useTexture;
+    int useTexture;
+    int clipAlpha;
 }
 
 cbuffer cbperframe
@@ -108,19 +109,26 @@ float4 pixelShader(VertexOUT vout) : SV_TARGET
     [flatten]
     if (useTexture)
     {
-        diffTexColor = diffuseMap.Sample(sam, vout.texCoords);
-        //alphaTexColor = alphaMap.Sample(sam, vout.texCoords);
+        diffTexColor = diffuseMap.Sample(sam, vout.texCoords);        
     }
-    texColor = diffTexColor; // * alphaTexColor;
-        
-    color += calculateDirLight(dirLight, material, normalize(vout.NormalW), vout.PosW, texColor);
-    color += calculatePointLight(pointLight, material, normalize(vout.NormalW), vout.PosW, texColor);
-    color += calculateSpotLight(spotLight, material, normalize(vout.NormalW), vout.PosW, texColor);
     
+    [flatten]
+    if (clipAlpha)
+    {
+        clip(diffTexColor.a - 0.1f);
+    }
+    
+    texColor = diffTexColor; 
+    
+    color += calculateDirLight(dirLight, material, normalize(vout.NormalW), vout.PosW, texColor);
+    //color += calculatePointLight(pointLight, material, normalize(vout.NormalW), vout.PosW, texColor);
+    //color += calculateSpotLight(spotLight, material, normalize(vout.NormalW), vout.PosW, texColor);
+    
+    color.a = texColor.a * material.diffuseColor.a;
     return color;
 }
 
-//----------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------
 float4 calculateDirLight(DirectLight l, Material m, float3 normal, float3 vertexPosW, float4 diffTexColor)
 {
     float3 lightDir = normalize(l.lightDir);
@@ -146,7 +154,7 @@ float4 calculateDirLight(DirectLight l, Material m, float3 normal, float3 vertex
     return diffTexColor * (ambient + diffuse) + specular;
 }
 
-//-----------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------
 float4 calculatePointLight(PointLight l, Material m, float3 normal, float3 vertexPosW, float4 diffTexColor)
 {
     float3 lightDir = l.position - vertexPosW;
@@ -182,7 +190,7 @@ float4 calculatePointLight(PointLight l, Material m, float3 normal, float3 verte
     return diffTexColor * (ambient + diffuse) + specular;
 }
 
-//---------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------
 float4 calculateSpotLight(SpotLight l, Material m, float3 normal, float3 vertexPosW, float4 diffTexColor)
 {
     float3 lightDir = l.position - vertexPosW;
