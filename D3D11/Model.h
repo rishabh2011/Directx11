@@ -26,11 +26,10 @@ struct VertexColor
 	XMFLOAT4 color;
 };
 
-//Sierpinski Gasket Tetrahedron
-extern void XM_CALLCONV addTriangleToData(FXMVECTOR a, FXMVECTOR b, FXMVECTOR c, GXMVECTOR color, std::vector<VertexColor>& points);
-extern void XM_CALLCONV addTetraToData(FXMVECTOR a, FXMVECTOR b, FXMVECTOR c, GXMVECTOR d, std::vector<VertexColor>& points);
-extern void XM_CALLCONV divideTetra(FXMVECTOR a, FXMVECTOR b, FXMVECTOR c, GXMVECTOR d, int count, std::vector<VertexColor>& points);
-extern void generateSierpinskiGasketPoints(std::vector<VertexColor>& points, int count);
+//Sierpinski Gasket Triangle
+extern void XM_CALLCONV addTriangleToData(FXMVECTOR a, FXMVECTOR b, FXMVECTOR c, GXMVECTOR color, std::vector<Vertex>& points);
+extern void XM_CALLCONV divideTriangle(FXMVECTOR a, FXMVECTOR b, FXMVECTOR c, GXMVECTOR d, int count, std::vector<Vertex>& points);
+extern void generateSierpinskiGasketPoints(std::vector<Vertex>& points, int count);
 
 class Model
 {

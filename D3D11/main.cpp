@@ -13,7 +13,7 @@ private:
 	ComPtr<ID3D11VertexShader> vertexShader;
 	ComPtr<ID3D11PixelShader> pixelShader;
 
-	std::vector<VertexColor> points;
+	std::vector<Vertex> points;
 
 public:
 
@@ -81,7 +81,7 @@ bool InitD3DApp::init()
 //----------------------------------
 void InitD3DApp::buildGeometryData()
 {
-	VertexColor* p;
+	Vertex* p;
 	generateSierpinskiGasketPoints(points, 3);
 	
 	//Define buffer desc
@@ -136,9 +136,8 @@ void InitD3DApp::buildShaderData()
 	D3D11_INPUT_ELEMENT_DESC inpDesc[]
 	{
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
 	};
-	ThrowIfFailed(d3dDevice->CreateInputLayout(inpDesc, 2, compiledCode->GetBufferPointer(),
+	ThrowIfFailed(d3dDevice->CreateInputLayout(inpDesc, 1, compiledCode->GetBufferPointer(),
 		compiledCode->GetBufferSize(), inputLayout.GetAddressOf()));
 	compiledCode.Reset();
 
@@ -215,7 +214,7 @@ void InitD3DApp::drawScene()
 //----------------------------------------------------
 void InitD3DApp::drawObjectIndexed(const Model* model)
 {
-	UINT stride = sizeof(VertexColor);
+	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
 	//Set Buffers
 	d3dImmediateContext->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
