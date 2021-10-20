@@ -1,6 +1,11 @@
 #pragma once
-#include "Lighting.h"
 #include "d3dUtil.h"
+#include "GameTimer.h"
+
+struct Vertex
+{
+	XMFLOAT3 position;
+};
 
 struct VertexNorm
 {
@@ -21,6 +26,12 @@ struct VertexColor
 	XMFLOAT4 color;
 };
 
+//Sierpinski Gasket Tetrahedron
+extern void XM_CALLCONV addTriangleToData(FXMVECTOR a, FXMVECTOR b, FXMVECTOR c, GXMVECTOR color, std::vector<VertexColor>& points);
+extern void XM_CALLCONV addTetraToData(FXMVECTOR a, FXMVECTOR b, FXMVECTOR c, GXMVECTOR d, std::vector<VertexColor>& points);
+extern void XM_CALLCONV divideTetra(FXMVECTOR a, FXMVECTOR b, FXMVECTOR c, GXMVECTOR d, int count, std::vector<VertexColor>& points);
+extern void generateSierpinskiGasketPoints(std::vector<VertexColor>& points, int count);
+
 class Model
 {
 public:
@@ -38,7 +49,6 @@ public:
 	UINT offset{ 0 };
 
 	XMFLOAT4X4 worldMatrix;
-	Material material;
 
 	//Index Buffer
 	ComPtr<ID3D11Buffer>indexBuffer;
@@ -71,92 +81,4 @@ public:
 			}
 		}
 	}
-};
-
-//-----------------------------------------------------//
-//-----------------------CUBE--------------------------//
-//-----------------------------------------------------//
-VertexNormTex cubeVertices[] =
-{
-	//Top Face
-	{XMFLOAT3{-0.5f,  0.5f, -0.5f},	 XMFLOAT3(),  XMFLOAT2{0.0f, 1.0f}},  //Bottom Left - 0
-	{XMFLOAT3{-0.5f,  0.5f,  0.5f},  XMFLOAT3(),  XMFLOAT2{0.0f, 0.0f}},  //Top Left - 1
-	{XMFLOAT3{ 0.5f,  0.5f,  0.5f},  XMFLOAT3(),  XMFLOAT2{1.0f, 0.0f}},  //Top Right - 2
-	{XMFLOAT3{ 0.5f,  0.5f, -0.5f},  XMFLOAT3(),  XMFLOAT2{1.0f, 1.0f}},  //Bottom Right - 3
-
-	//Bottom Face								  
-	{XMFLOAT3{-0.5f, -0.5f,  0.5f},	 XMFLOAT3(),  XMFLOAT2{0.0f, 1.0f}},  //Bottom Left - 4
-	{XMFLOAT3{-0.5f, -0.5f, -0.5f},  XMFLOAT3(),  XMFLOAT2{0.0f, 0.0f}},  //Top Left - 5
-	{XMFLOAT3{ 0.5f, -0.5f, -0.5f},  XMFLOAT3(),  XMFLOAT2{1.0f, 0.0f}},  //Top Right - 6
-	{XMFLOAT3{ 0.5f, -0.5f,  0.5f},  XMFLOAT3(),  XMFLOAT2{1.0f, 1.0f}},  //Bottom Right - 7
-
-	//Left Face									  
-	{XMFLOAT3{-0.5f, -0.5f,  0.5f},  XMFLOAT3(),  XMFLOAT2{0.0f, 1.0f}},  //Bottom Left - 8
-	{XMFLOAT3{-0.5f,  0.5f,  0.5f},  XMFLOAT3(),  XMFLOAT2{0.0f, 0.0f}},  //Top Left - 9
-	{XMFLOAT3{-0.5f,  0.5f, -0.5f},	 XMFLOAT3(),  XMFLOAT2{1.0f, 0.0f}},  //Top Right - 10
-	{XMFLOAT3{-0.5f, -0.5f, -0.5f},	 XMFLOAT3(),  XMFLOAT2{1.0f, 1.0f}},  //Bottom Right - 11
-
-	//Right Face								  
-	{XMFLOAT3{ 0.5f, -0.5f, -0.5f},  XMFLOAT3(),  XMFLOAT2{0.0f, 1.0f}},  //Bottom Left - 12
-	{XMFLOAT3{ 0.5f,  0.5f, -0.5f},  XMFLOAT3(),  XMFLOAT2{0.0f, 0.0f}},  //Top Left - 13
-	{XMFLOAT3{ 0.5f,  0.5f,  0.5f},	 XMFLOAT3(),  XMFLOAT2{1.0f, 0.0f}},  //Top Right - 14
-	{XMFLOAT3{ 0.5f, -0.5f,  0.5f},	 XMFLOAT3(),  XMFLOAT2{1.0f, 1.0f}},  //Bottom Right - 15	
-
-	//Front Face								  
-	{XMFLOAT3{-0.5f, -0.5f, -0.5f},  XMFLOAT3(),  XMFLOAT2{0.0f, 1.0f}},  //Bottom Left - 16
-	{XMFLOAT3{-0.5f,  0.5f, -0.5f},	 XMFLOAT3(),  XMFLOAT2{0.0f, 0.0f}},  //Top Left - 17
-	{XMFLOAT3{ 0.5f,  0.5f, -0.5f},	 XMFLOAT3(),  XMFLOAT2{1.0f, 0.0f}},  //Top Right - 18
-	{XMFLOAT3{ 0.5f, -0.5f, -0.5f},	 XMFLOAT3(),  XMFLOAT2{1.0f, 1.0f}},  //Bottom Right - 19
-
-	//Back Face									  
-	{XMFLOAT3{ 0.5f, -0.5f,  0.5f},  XMFLOAT3(),  XMFLOAT2{0.0f, 1.0f}},  //Bottom Left - 20
-	{XMFLOAT3{ 0.5f,  0.5f,  0.5f},	 XMFLOAT3(),  XMFLOAT2{0.0f, 0.0f}},  //Top Left - 21
-	{XMFLOAT3{-0.5f,  0.5f,  0.5f},	 XMFLOAT3(),  XMFLOAT2{1.0f, 0.0f}},  //Top Right - 22
-	{XMFLOAT3{-0.5f, -0.5f,  0.5f},	 XMFLOAT3(),  XMFLOAT2{1.0f, 1.0f}},  //Bottom Right - 23		
-};
-
-//Cube Indices
-unsigned int cubeIndices[] = {
-	//Top Face
-	0, 1, 2,
-	0, 2, 3,
-
-	//Bottom Face
-	4, 5, 6,
-	4, 6, 7,
-
-	//Left Face
-	8, 9, 10,
-	8, 10, 11,
-
-	//Right Face
-	12, 13, 14,
-	12, 14, 15,
-
-	//Front Face
-	16, 17, 18,
-	16, 18, 19,
-
-	//Back Face
-	20, 21, 22,
-	20, 22, 23
-};
-
-//-----------------------------------------------------//
-//-----------------------QUAD--------------------------//
-//-----------------------------------------------------//
-VertexNormTex quadVertices[] =
-{
-	//Front Face								  
-	{XMFLOAT3{-0.5f, -0.5f, -0.5f},  XMFLOAT3(),  XMFLOAT2{0.0f, 1.0f}},  //Bottom Left - 0
-	{XMFLOAT3{-0.5f,  0.5f, -0.5f},	 XMFLOAT3(),  XMFLOAT2{0.0f, 0.0f}},  //Top Left - 1
-	{XMFLOAT3{ 0.5f,  0.5f, -0.5f},	 XMFLOAT3(),  XMFLOAT2{1.0f, 0.0f}},  //Top Right - 2
-	{XMFLOAT3{ 0.5f, -0.5f, -0.5f},	 XMFLOAT3(),  XMFLOAT2{1.0f, 1.0f}},  //Bottom Right - 3
-};
-
-//Cube Indices
-unsigned int quadIndices[] = {
-	//Top Face
-	0, 1, 2,
-	0, 2, 3,
 };

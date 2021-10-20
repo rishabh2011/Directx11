@@ -2,6 +2,7 @@
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "D3D11.lib")
 #pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "dxguid.lib")
 
 #include <windowsx.h>
 #include <comdef.h>
@@ -15,6 +16,7 @@
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h> 
 #include <DirectXColors.h>
+#include <random>
 #include <iostream>
 #include <map>
 #include <vector>
@@ -78,33 +80,6 @@ namespace
 		file.close();
 
 		return compiledCode;
-	}
-
-	//-------------------------------------//
-	//--------Texture loading--------------//
-	//-------------------------------------//
-	enum class texType : unsigned int { WIC, DDS, HDR, TGA };
-
-	// WIC -> .BMP, .PNG, .GIF, .TIFF, .JPEG
-	// DDS 
-	// HDR
-	// TGA
-	// Pass in correct file type enum
-	// Returns a shader resource view to the created texture resource
-	//----------------------------------------------------------------------------------------------------------
-	void createShaderResourceViewFromImageFile(const std::wstring& fileName, ComPtr<ID3D11Device> device,
-		ComPtr<ID3D11DeviceContext> deviceContext, texType type, ComPtr<ID3D11ShaderResourceView>* texView)
-	{
-		switch (type)
-		{
-		case texType::WIC:
-			ThrowIfFailed(CreateWICTextureFromFile(device.Get(), deviceContext.Get(), fileName.c_str(), nullptr, (*texView).GetAddressOf()));
-			break;
-
-		case texType::DDS:
-			ThrowIfFailed(CreateDDSTextureFromFile(device.Get(), fileName.c_str(), nullptr, (*texView).GetAddressOf()));
-			break;
-		}
 	}
 
 	//--------------------------------------------

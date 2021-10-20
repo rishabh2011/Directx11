@@ -442,10 +442,6 @@ LRESULT d3dApp::msgHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		{
 			DestroyWindow(appWindow);
 		}
-		else
-		{
-			moveCamera(wParam);
-		}
 		return 0;	
 
 	case WM_DESTROY:
@@ -456,85 +452,16 @@ LRESULT d3dApp::msgHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
-//------------------------------------
-void d3dApp::moveCamera(WPARAM wParam)
-{
-	XMVECTOR camPos = XMLoadFloat4(&(this->camPos));
-	XMVECTOR camLookAt = XMLoadFloat3(&(this->camLookAt));
-	XMVECTOR right = XMVectorZero();
-
-	//W - Move Forward
-	if (wParam == 0x57)
-	{
-		camPos += camLookAt * camSpeed * gameTimer.getDeltaTime();
-		XMStoreFloat4(&(this->camPos), camPos);
-	}
-
-	//S - Move Backward
-	if (wParam == 0x53)
-	{
-		camPos -= camLookAt * camSpeed * gameTimer.getDeltaTime();
-		XMStoreFloat4(&(this->camPos), camPos);
-	}
-
-	//A - Move Left
-	if (wParam == 0x41)
-	{
-		right = XMVector3Normalize(XMVector3Cross({ 0.0f, 1.0f, 0.0f }, camLookAt));
-		camPos -= right * camSpeed * gameTimer.getDeltaTime();
-		XMStoreFloat4(&(this->camPos), camPos);
-	}
-
-	//D - Move Right
-	if (wParam == 0x44)
-	{
-		right = XMVector3Normalize(XMVector3Cross({ 0.0f, 1.0f, 0.0f }, camLookAt));
-		camPos += right * camSpeed * gameTimer.getDeltaTime();
-		XMStoreFloat4(&(this->camPos), camPos);
-	}
-}
-
 //---------------------------------------------------------
 void d3dApp::onMouseButtonDown(WPARAM wParam, int x, int y)
 {
-	lastX = x;
-	lastY = y;
+	
 }
 
 //---------------------------------------------------
 void d3dApp::onMouseMove(WPARAM wParam, int x, int y)
 {
-	if ((wParam & MK_LBUTTON) != 0)
-	{
-		float xOffset = x - lastX;
-		float yOffset = y - lastY;
 
-		xOffset *= camSens;
-		yOffset *= camSens;
-
-		lastX = x;
-		lastY = y;
-
-		yaw += xOffset;
-		pitch += yOffset;
-
-		if (pitch > 89) { pitch = 89; }
-		if (pitch < -89) { pitch = -89; }
-
-		float newX, newY, newZ;
-		newX = sinf(XMConvertToRadians(yaw)) * cosf(XMConvertToRadians(pitch));
-		newY = -sinf(XMConvertToRadians(pitch));
-		newZ = cosf(XMConvertToRadians(pitch)) * cosf(XMConvertToRadians(yaw));
-
-		camLookAt.x = newX;
-		camLookAt.y = newY;
-		camLookAt.z = newZ;
-
-		//Normalize
-		XMVECTOR camLookAt = XMLoadFloat3(&(this->camLookAt));
-		camLookAt = XMVector3Normalize(camLookAt);
-		XMStoreFloat3(&(this->camLookAt), camLookAt);
-	}
 }
 
 //--------------------------------
@@ -564,18 +491,6 @@ void d3dApp::calculateFrameStats()
 float d3dApp::aspectRatio()
 {
 	return static_cast<float>(appWidth) / appHeight;
-}
-
-//------------------------------------
-const XMFLOAT4& d3dApp::getCameraPos()
-{
-	return camPos;
-}
-
-//--------------------------------
-XMFLOAT3 d3dApp::getCameraTarget()
-{
-	return camLookAt;
 }
 
 //---------------

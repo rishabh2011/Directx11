@@ -43,16 +43,6 @@ protected:
 	//Timer vars
 	GameTimer gameTimer;
 
-	//Camera variables
-	XMFLOAT3 camLookAt;
-	XMFLOAT4 camPos;
-	float yaw{ 0 };
-	float pitch{ 0 };
-	float lastX{ 0 };
-	float lastY{ 0 };
-	float camSpeed{ 10.0f };
-	float camSens{ 0.1f };
-
 public:
 
 	explicit d3dApp(HINSTANCE appInstance);
@@ -70,13 +60,9 @@ public:
 	virtual void onMouseButtonUp(WPARAM wParam, int x, int y) {}
 	virtual void onMouseMove(WPARAM wParam, int x, int y);
 
-	const XMFLOAT4& getCameraPos();
-	XMFLOAT3 getCameraTarget();
-
 protected:
 	void calculateFrameStats();
 	bool initWindowApp();
 	bool initD3D();
 	float aspectRatio();
-	void moveCamera(WPARAM wParam);
 };
