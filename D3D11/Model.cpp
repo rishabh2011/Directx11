@@ -1,4 +1,5 @@
 #include "Model.h"
+#include "MathHelper.h"
 
 void XM_CALLCONV addTriangleToData(FXMVECTOR a, FXMVECTOR b, FXMVECTOR c, std::vector<Vertex>& points)
 {
@@ -22,9 +23,19 @@ void XM_CALLCONV divideTriangle(FXMVECTOR a, FXMVECTOR b, FXMVECTOR c, int count
 	}
 	else
 	{
+		XMVECTOR perturbValues;
+
 		XMVECTOR ab = XMVectorLerp(a, b, 0.5f);
+		perturbValues = getRandomVector(-0.02f, 0.02f);
+		ab += perturbValues;
+
 		XMVECTOR bc = XMVectorLerp(b, c, 0.5f);
+		perturbValues = getRandomVector(-0.02f, 0.02f);
+		bc += perturbValues;
+
 		XMVECTOR ac = XMVectorLerp(a, c, 0.5f);
+		perturbValues = getRandomVector(-0.02f, 0.02f);
+		ac += perturbValues;
 
 		--count;
 
@@ -50,4 +61,3 @@ void generateSierpinskiGasketPoints(std::vector<Vertex>& points, int count)
 
 	divideTriangle(a, b, c, count, points);
 }
-

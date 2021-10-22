@@ -166,7 +166,7 @@ void InitD3DApp::createRasterizerBlendStates()
 {
 	D3D11_RASTERIZER_DESC rastDesc;
 	ZeroMemory(&rastDesc, sizeof(rastDesc));
-	rastDesc.FillMode = D3D11_FILL_SOLID;
+	rastDesc.FillMode = D3D11_FILL_WIREFRAME;
 	rastDesc.CullMode = D3D11_CULL_NONE;
 	rastDesc.FrontCounterClockwise = false;
 	rastDesc.DepthClipEnable = true;

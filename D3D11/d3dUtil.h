@@ -16,7 +16,6 @@
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h> 
 #include <DirectXColors.h>
-#include <random>
 #include <iostream>
 #include <map>
 #include <vector>
