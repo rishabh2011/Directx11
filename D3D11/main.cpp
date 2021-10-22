@@ -5,7 +5,7 @@ class InitD3DApp : public d3dApp
 {
 private:
 
-	ComPtr<ID3D11Buffer>vertexBuffer;	
+	ComPtr<ID3D11Buffer>vertexBuffer;
 
 	ComPtr<ID3D11InputLayout> inputLayout;
 	ComPtr<ID3D11RasterizerState> rastState;
@@ -13,7 +13,7 @@ private:
 	ComPtr<ID3D11VertexShader> vertexShader;
 	ComPtr<ID3D11PixelShader> pixelShader;
 
-	std::vector<Vertex> points;
+	std::vector<VertexColor> points;
 
 public:
 
@@ -26,8 +26,8 @@ protected:
 	virtual void onResize() override;
 	virtual void updateScene(float deltaTime) override;
 	virtual void drawScene() override;
-	void drawObjectIndexed(const Model * desc);
-	
+	void drawObjectIndexed(const Model* desc);
+
 	void buildGeometryData();
 	void buildShaderData();
 	void createRasterizerBlendStates();
@@ -60,7 +60,7 @@ int WINAPI WinMain(HINSTANCE appInstance, HINSTANCE prevInstance, PSTR cmdLine, 
 //-----------------------------------------------------------------
 InitD3DApp::InitD3DApp(HINSTANCE appInstance) : d3dApp(appInstance)
 {
-	
+
 }
 
 //--------------------------
@@ -74,16 +74,16 @@ bool InitD3DApp::init()
 	buildGeometryData();
 	buildShaderData();
 	createRasterizerBlendStates();
-	
+
 	return true;
 }
 
 //----------------------------------
 void InitD3DApp::buildGeometryData()
 {
-	Vertex* p;
+	VertexColor* p;
 	generateSierpinskiGasketPoints(points, 3);
-	
+
 	//Define buffer desc
 	D3D11_BUFFER_DESC vbDesc;
 	vbDesc.ByteWidth = points.size() * sizeof(VertexColor);
@@ -136,8 +136,9 @@ void InitD3DApp::buildShaderData()
 	D3D11_INPUT_ELEMENT_DESC inpDesc[]
 	{
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
 	};
-	ThrowIfFailed(d3dDevice->CreateInputLayout(inpDesc, 1, compiledCode->GetBufferPointer(),
+	ThrowIfFailed(d3dDevice->CreateInputLayout(inpDesc, 2, compiledCode->GetBufferPointer(),
 		compiledCode->GetBufferSize(), inputLayout.GetAddressOf()));
 	compiledCode.Reset();
 
@@ -166,7 +167,7 @@ void InitD3DApp::createRasterizerBlendStates()
 {
 	D3D11_RASTERIZER_DESC rastDesc;
 	ZeroMemory(&rastDesc, sizeof(rastDesc));
-	rastDesc.FillMode = D3D11_FILL_WIREFRAME;
+	rastDesc.FillMode = D3D11_FILL_SOLID;
 	rastDesc.CullMode = D3D11_CULL_NONE;
 	rastDesc.FrontCounterClockwise = false;
 	rastDesc.DepthClipEnable = true;
@@ -206,7 +207,7 @@ void InitD3DApp::drawScene()
 	d3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	drawObjectIndexed(nullptr);
-	
+
 	//Draw Cube
 	ThrowIfFailed(swapChain->Present(0, 0));
 }
@@ -214,7 +215,7 @@ void InitD3DApp::drawScene()
 //----------------------------------------------------
 void InitD3DApp::drawObjectIndexed(const Model* model)
 {
-	UINT stride = sizeof(Vertex);
+	UINT stride = sizeof(VertexColor);
 	UINT offset = 0;
 	//Set Buffers
 	d3dImmediateContext->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);

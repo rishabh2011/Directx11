@@ -26,17 +26,18 @@ struct VertexColor
 	XMFLOAT4 color;
 };
 
-//Sierpinski Gasket Triangle
-extern void XM_CALLCONV addTriangleToData(FXMVECTOR a, FXMVECTOR b, FXMVECTOR c, GXMVECTOR color, std::vector<Vertex>& points);
-extern void XM_CALLCONV divideTriangle(FXMVECTOR a, FXMVECTOR b, FXMVECTOR c, GXMVECTOR d, int count, std::vector<Vertex>& points);
-extern void generateSierpinskiGasketPoints(std::vector<Vertex>& points, int count);
+//Sierpinski Gasket Tetrahedron
+extern void XM_CALLCONV addTriangleToData(FXMVECTOR a, FXMVECTOR b, FXMVECTOR c, GXMVECTOR color, std::vector<VertexColor>& points);
+extern void XM_CALLCONV addTetraToData(FXMVECTOR a, FXMVECTOR b, FXMVECTOR c, GXMVECTOR d, std::vector<VertexColor>& points);
+extern void XM_CALLCONV divideTetra(FXMVECTOR a, FXMVECTOR b, FXMVECTOR c, GXMVECTOR d, int count, std::vector<VertexColor>& points);
+extern void generateSierpinskiGasketPoints(std::vector<VertexColor>& points, int count);
 
 class Model
 {
 public:
 
-	Model(UINT stride, UINT indexCount) : stride{stride}, indexCount{indexCount}
-	{ 
+	Model(UINT stride, UINT indexCount) : stride{ stride }, indexCount{ indexCount }
+	{
 		XMMATRIX identity = XMMatrixIdentity();
 		XMStoreFloat4x4(&worldMatrix, identity);
 		XMStoreFloat4x4(&texTransformMatrix, identity);
@@ -60,9 +61,9 @@ public:
 	ComPtr<ID3D11SamplerState> sampler;
 	XMFLOAT4X4 texTransformMatrix;
 	float animTimer{ 0.0f };
-	float frameChangeTimer { 1.0f / 30.0f };
+	float frameChangeTimer{ 1.0f / 30.0f };
 	int currentFrame{ 0 };
-	bool useTexture{ true };	
+	bool useTexture{ true };
 	bool clipAlpha{ false };
 	float uOffset{ 0.0f };
 	float vOffset{ 0.0f };
