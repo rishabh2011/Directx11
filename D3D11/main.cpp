@@ -1,11 +1,13 @@
 #include "D3DApp.h"
 #include "Model.h"
+#include "Turtle.h"
 
 class InitD3DApp : public d3dApp
 {
 private:
 
 	ComPtr<ID3D11Buffer>vertexBuffer;
+	ComPtr<ID3D11Buffer> indexBuffer;
 
 	ComPtr<ID3D11InputLayout> inputLayout;
 	ComPtr<ID3D11RasterizerState> rastState;
@@ -13,13 +15,17 @@ private:
 	ComPtr<ID3D11VertexShader> vertexShader;
 	ComPtr<ID3D11PixelShader> pixelShader;
 
-	std::vector<VertexColor> points;
+	std::vector<Vertex> points;
+	std::vector<unsigned int> indices;
+
+	Turtle t;
 
 public:
 
 	InitD3DApp(HINSTANCE appInstance);
 	~InitD3DApp();
 	virtual bool init() override;
+
 
 protected:
 
@@ -28,6 +34,7 @@ protected:
 	virtual void drawScene() override;
 	void drawObjectIndexed(const Model* desc);
 
+	void TurtleCommands();
 	void buildGeometryData();
 	void buildShaderData();
 	void createRasterizerBlendStates();
@@ -71,6 +78,8 @@ bool InitD3DApp::init()
 {
 	if (!d3dApp::init()) { return false; }
 
+	TurtleCommands();
+
 	buildGeometryData();
 	buildShaderData();
 	createRasterizerBlendStates();
@@ -78,28 +87,50 @@ bool InitD3DApp::init()
 	return true;
 }
 
+//-------------------------------
+void InitD3DApp::TurtleCommands()
+{
+	t.init(0.0f, 0.0f, 0);
+	t.togglePen(true);
+	t.forward(0.2f);
+	t.left(90);
+	t.togglePen(false);
+	t.forward(0.3f);
+	t.left(90);
+	t.forward(0.2f);
+	t.left(90);
+	t.forward(0.3f);
+	t.left(90);
+	t.forward(0.2f);
+
+	points = t.getPoints();
+	indices = t.getIndices();
+}
+
 //----------------------------------
 void InitD3DApp::buildGeometryData()
 {
-	VertexColor* p;
-	generateSierpinskiGasketPoints(points, 3);
-
 	//Define buffer desc
 	D3D11_BUFFER_DESC vbDesc;
-	vbDesc.ByteWidth = points.size() * sizeof(VertexColor);
-	vbDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	vbDesc.ByteWidth = 1000 * sizeof(Vertex);
+	vbDesc.Usage = D3D11_USAGE_DYNAMIC;
 	vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vbDesc.CPUAccessFlags = 0;
+	vbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	vbDesc.MiscFlags = 0;
 	vbDesc.StructureByteStride = 0;
 
-	//Define sub resource data
-	p = &points[0]; //Create a pointer which acts as a built in array for the vector array in memory
-	D3D11_SUBRESOURCE_DATA vbData;
-	vbData.pSysMem = p;
-
 	//Create vertex buffer
-	ThrowIfFailed(d3dDevice->CreateBuffer(&vbDesc, &vbData, vertexBuffer.GetAddressOf()));
+	ThrowIfFailed(d3dDevice->CreateBuffer(&vbDesc, nullptr, vertexBuffer.GetAddressOf()));
+
+	D3D11_BUFFER_DESC idxDesc;
+	idxDesc.ByteWidth = sizeof(unsigned int) * 1000;
+	idxDesc.Usage = D3D11_USAGE_DYNAMIC;
+	idxDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	idxDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	idxDesc.MiscFlags = 0;
+	idxDesc.StructureByteStride = 0;
+
+	ThrowIfFailed(d3dDevice->CreateBuffer(&idxDesc, nullptr, indexBuffer.GetAddressOf()));
 }
 
 //--------------------------------
@@ -136,9 +167,9 @@ void InitD3DApp::buildShaderData()
 	D3D11_INPUT_ELEMENT_DESC inpDesc[]
 	{
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
+		//{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
 	};
-	ThrowIfFailed(d3dDevice->CreateInputLayout(inpDesc, 2, compiledCode->GetBufferPointer(),
+	ThrowIfFailed(d3dDevice->CreateInputLayout(inpDesc, 1, compiledCode->GetBufferPointer(),
 		compiledCode->GetBufferSize(), inputLayout.GetAddressOf()));
 	compiledCode.Reset();
 
@@ -204,7 +235,7 @@ void InitD3DApp::drawScene()
 	d3dImmediateContext->IASetInputLayout(inputLayout.Get());
 
 	//Set primitive topology
-	d3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	d3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
 
 	drawObjectIndexed(nullptr);
 
@@ -215,11 +246,24 @@ void InitD3DApp::drawScene()
 //----------------------------------------------------
 void InitD3DApp::drawObjectIndexed(const Model* model)
 {
-	UINT stride = sizeof(VertexColor);
+	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
+
 	//Set Buffers
 	d3dImmediateContext->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
+	d3dImmediateContext->IASetIndexBuffer(indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+
+	//Update Buffers with new data
+	D3D11_MAPPED_SUBRESOURCE mappedSubResource;
+
+	d3dImmediateContext->Map(vertexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubResource);
+	memcpy(mappedSubResource.pData, &points[0], sizeof(Vertex) * points.size());
+	d3dImmediateContext->Unmap(vertexBuffer.Get(), 0);
+
+	d3dImmediateContext->Map(indexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubResource);
+	memcpy(mappedSubResource.pData, &indices[0], sizeof(unsigned int) * indices.size());
+	d3dImmediateContext->Unmap(indexBuffer.Get(), 0);
 
 	//Draw
-	d3dImmediateContext->Draw(points.size(), 0);
+	d3dImmediateContext->DrawIndexed(indices.size(), 0, 0);
 }

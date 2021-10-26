@@ -14,3 +14,8 @@ XMVECTOR getRandomVector(float min, float max)
 	XMVECTOR randomVector = XMVectorSet(randomFloat(engine), randomFloat(engine), randomFloat(engine), randomFloat(engine));
 	return randomVector;
 }
+
+float degToRadians(float angle)
+{
+	return XMConvertToRadians(angle);
+}
